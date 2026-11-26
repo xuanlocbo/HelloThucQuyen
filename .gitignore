@@ -1,0 +1,13 @@
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+*.jks
+*.keystore
+.DS_Store
+*.apk
+*.aab
+
+/app/src/main/assets/htq/
+/HTQ-5.3-runtime-official.zip

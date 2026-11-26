@@ -1,0 +1,28 @@
+{
+  "runtime_version": "5.3-official-1",
+  "bytes": 90819954,
+  "sha256": "a54ef041ffd7bfb825a4ff6edb81520c5290ea03720ea064e19c31014b949b62",
+  "entries": 4664,
+  "parts": [
+    {
+      "name": "HTQ-5.3-runtime.part-01",
+      "bytes": 23000000,
+      "sha256": "10193a6463895debfae1bedff70d2a082b920cbb6de89fe0d20d1b69aadb5fbd"
+    },
+    {
+      "name": "HTQ-5.3-runtime.part-02",
+      "bytes": 23000000,
+      "sha256": "d20a5c5f6c801eda201b0e16fabc9cf33928262565e2b1f40c999849b89a3b3f"
+    },
+    {
+      "name": "HTQ-5.3-runtime.part-03",
+      "bytes": 23000000,
+      "sha256": "512e6fde79e57a3f7c5f8760cbf6ba4d6eac71223266b58d35fbd7f7006b3ce0"
+    },
+    {
+      "name": "HTQ-5.3-runtime.part-04",
+      "bytes": 21819954,
+      "sha256": "6b73eed5b599f892c0ed2d0d952e44a5ca83ad049de0be29d5612676227a4191"
+    }
+  ]
+}
