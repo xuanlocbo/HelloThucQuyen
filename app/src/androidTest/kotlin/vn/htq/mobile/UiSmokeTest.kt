@@ -35,18 +35,18 @@ class UiSmokeTest {
         val a=i.startActivitySync(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
         try {
             fun walk(v:View):List<View> = listOf(v)+if(v is ViewGroup)(0 until v.childCount).flatMap{walk(v.getChildAt(it))}else emptyList()
-            fun find(label:String):View? {
+            fun find(label:String,clickable:Boolean=false):View? {
                 var out:View?=null
-                i.runOnMainSync{out=walk(a.window.decorView).firstOrNull{v->v.visibility==View.VISIBLE && ((v is TextView && v.text.toString()==label)||v.contentDescription?.toString()==label)}}
+                i.runOnMainSync{out=walk(a.window.decorView).firstOrNull{v->v.visibility==View.VISIBLE && (!clickable || v.isClickable) && ((v is TextView && v.text.toString()==label)||v.contentDescription?.toString()==label)}}
                 return out
             }
-            fun await(label:String):View {
+            fun await(label:String,clickable:Boolean=false):View {
                 val deadline=SystemClock.elapsedRealtime()+20000
-                do {i.waitForIdleSync();find(label)?.let{return it};SystemClock.sleep(100)}while(SystemClock.elapsedRealtime()<deadline)
+                do {i.waitForIdleSync();find(label,clickable)?.let{return it};SystemClock.sleep(100)}while(SystemClock.elapsedRealtime()<deadline)
                 fail("Missing visible view: $label");error("Missing view")
             }
             fun tap(label:String,minimum:Int=56){
-                val v=await(label);i.runOnMainSync{
+                val v=await(label,true);i.runOnMainSync{
                     assertTrue("Disabled $label",v.isEnabled);assertTrue("Not clickable $label",v.isClickable)
                     val density=a.resources.displayMetrics.density
                     assertTrue("Width $label ${v.width/density}",v.width/density>=minimum-0.5f)
@@ -57,11 +57,38 @@ class UiSmokeTest {
             fun screenshot(name:String){
                 i.waitForIdleSync();SystemClock.sleep(300)
                 val b=requireNotNull(i.uiAutomation.takeScreenshot())
-                try{val folder=requireNotNull(ctx.getExternalFilesDir("qa"));assertTrue(folder.exists()||folder.mkdirs());File(folder,"$name.png").outputStream().use{assertTrue(b.compress(Bitmap.CompressFormat.PNG,100,it))}}finally{b.recycle()}
+                try{val folder=File(ctx.filesDir,"qa");assertTrue(folder.exists()||folder.mkdirs());File(folder,"$name.png").outputStream().use{assertTrue(b.compress(Bitmap.CompressFormat.PNG,100,it))}}finally{b.recycle()}
             }
             await("Bắt đầu");screenshot("welcome");tap("Bắt đầu")
             await("Khu vườn");screenshot("home");tap("Khu vườn");await("Túi đồ");screenshot("garden");tap("Túi đồ");await("Túi đồ");screenshot("inventory");tap("Trang chủ")
             await("Khu vườn");assertNull(find("6.1 - Native technical foundation"));assertNull(find("6.1 - Loading local content"))
+            fun openTask(id:String){
+                val task=ui.tasks.getValue(id);val l=ui.lessons.getValue(task.lesson);val topic=ui.topics.getValue(l.topic)
+                val area=ui.areas.single{l.topic in it.topics}
+                tap(area.card.title);repeat(area.pages.indexOfFirst{l.topic in it}){tap("Sau")};tap(topic.card.title)
+                repeat(topic.lessons.indexOf(l.card.id)/4){tap("Sau")};tap(l.card.title);tap("Chơi");tap(ui.levels.getValue(task.level).title)
+                repeat(ui.levels.getValue(task.level).tasks.indexOf(id)){tap("Bỏ qua")}
+                await(task.prompt)
+            }
+            fun assertCards(prefix:String,expected:Int){
+                i.runOnMainSync {
+                    val views=walk(a.window.decorView).filter{it.contentDescription?.toString()?.startsWith(prefix)==true}
+                    assertEquals(prefix,expected,views.size)
+                    val d=a.resources.displayMetrics.density
+                    for(v in views){assertTrue("Card width $prefix",v.width/d>=55.5f);assertTrue("Card height $prefix",v.height/d>=55.5f)}
+                }
+            }
+            // Actual navigation and measured preview cards, not interaction-engine grading.
+            openTask("05.03-L2-Q02");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
+            screenshot("paired-page1");tap("Sau");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
+            assertTrue(await("Trước").isEnabled);assertFalse(await("Sau").isEnabled);screenshot("paired-page2");tap("Trang chủ")
+            openTask("04.02-L3-Q02");assertCards("Thẻ ",4);screenshot("memory-page1");tap("Sau");assertCards("Thẻ ",4)
+            assertFalse(await("Sau").isEnabled);screenshot("memory-page2");tap("Trang chủ")
+            openTask("04.07-L3-Q02");await("1 / 3");await("Thứ Hai");await("Thứ Ba");await("Thứ Tư")
+            for(day in listOf("Thứ Năm","Thứ Sáu","Thứ Bảy","Chủ nhật"))assertNull(find(day))
+            i.runOnMainSync{val next=walk(a.window.decorView).filter{it is TextView && it.text.toString()=="Sau"};assertEquals(2,next.size);assertTrue(next.none{it.isEnabled})}
+            screenshot("calendar-page1");tap("Trang chủ")
+
         } finally {i.runOnMainSync{a.finish()};i.waitForIdleSync();if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
     }
 }

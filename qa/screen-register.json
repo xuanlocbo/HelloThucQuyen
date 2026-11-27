@@ -1,0 +1,4320 @@
+{
+  "version": "5.3-official-1",
+  "tokens": {
+    "TOK-01": {
+      "portrait": [
+        360,
+        800
+      ],
+      "compact": [
+        320,
+        640
+      ],
+      "landscape": [
+        640,
+        360
+      ],
+      "tablet": [
+        800,
+        1024
+      ],
+      "font_scale_tests": [
+        1,
+        1.3
+      ]
+    },
+    "TOK-02": {
+      "margin_dp": 16,
+      "compact_margin_dp": 12,
+      "gap_dp": 12,
+      "base_step_dp": 8
+    },
+    "TOK-03": {
+      "child_min_dp": 56,
+      "preferred_dp": 64,
+      "adult_min_dp": 48,
+      "icon_dp": [
+        32,
+        40
+      ],
+      "target_gap_dp": 8
+    },
+    "TOK-04": {
+      "family": "Noto Sans",
+      "title_sp": [
+        28,
+        32
+      ],
+      "instruction_sp": [
+        24,
+        28
+      ],
+      "button_sp": [
+        22,
+        26
+      ],
+      "secondary_sp": [
+        18,
+        20
+      ]
+    },
+    "TOK-05": {
+      "letters_sp": [
+        80,
+        120
+      ],
+      "numbers_sp": [
+        64,
+        104
+      ],
+      "word_sp": [
+        44,
+        64
+      ]
+    },
+    "TOK-06": {
+      "header_dp": [
+        64,
+        88
+      ],
+      "voicebar_dp": [
+        80,
+        112
+      ],
+      "action_dp": [
+        72,
+        96
+      ],
+      "max_prompts": 1
+    },
+    "TOK-07": {
+      "fit": "contain",
+      "object_margin_fraction": 0.1,
+      "equal_choice_style": true
+    },
+    "TOK-08": {
+      "palette": {
+        "cream": "#FFF8EA",
+        "ink": "#243F43",
+        "white": "#FFFFFF",
+        "green": "#DDF0D8",
+        "blue": "#D9EBFA",
+        "peach": "#FBE2D9",
+        "lilac": "#F4E6FF",
+        "yellow": "#FFE9AB",
+        "teal": "#24664F",
+        "teal_dark": "#184C3C",
+        "edge": "#90B4A1",
+        "muted": "#556B6E",
+        "shadow": "#DCE4D6",
+        "pink": "#A83D63",
+        "navy": "#235A83",
+        "softedge": "#D3DCD2",
+        "disabled": "#E6E8E3",
+        "disabledink": "#4B6061",
+        "focus": "#235A83"
+      }
+    },
+    "TOK-09": {
+      "text_contrast_min": 4.5,
+      "large_text_min": 3,
+      "nontext_target": 3
+    },
+    "TOK-10": {
+      "feedback_ms": [
+        120,
+        220
+      ],
+      "transition_ms": [
+        180,
+        300
+      ],
+      "expression_ms": [
+        500,
+        1500
+      ],
+      "scene_ms": [
+        2000,
+        6000
+      ],
+      "reduced_motion": "static equivalent"
+    },
+    "TOK-11": {
+      "manual_advance": true,
+      "all_topics_unlocked": true,
+      "back_preserves_progress": true
+    },
+    "TOK-12": {
+      "voice_concurrency": 1,
+      "listen_target_dp": 64,
+      "duck_music": true,
+      "no_label_before_listen": true
+    },
+    "TOK-13": {
+      "options_initial": [
+        2,
+        3
+      ],
+      "typical": [
+        3,
+        4
+      ],
+      "max": 6
+    },
+    "TOK-14": {
+      "no_camera": true,
+      "no_recording": true,
+      "no_account": true,
+      "no_ads": true,
+      "no_external_links": true,
+      "no_purchases": true,
+      "parent_gate": true
+    },
+    "TOK-15": {
+      "save_on": [
+        "pause",
+        "exit",
+        "completion",
+        "valid_drop"
+      ],
+      "dedupe_rewards": true,
+      "no_score_open": true
+    },
+    "TOK-16": {
+      "orientation": "responsive",
+      "font_scale": [
+        1,
+        1.3
+      ],
+      "compact": "paginate; never shrink tap areas",
+      "tablet": "larger canvas"
+    },
+    "TOK-17": {
+      "catalog": "2.4",
+      "image_bank": "3.4-kho-1179",
+      "asset_ids_reused": true
+    },
+    "TOK-18": {
+      "drag_alternative": "tap source then destination",
+      "undo_creative": true,
+      "no_multitouch_required": true,
+      "no_countdown": true
+    }
+  },
+  "screens": {
+    "SCR-001": {
+      "key": "splash",
+      "name": "Khởi động",
+      "layout": "Logo và tên app lớn; một nhân vật chào, nền mở đầu. Không để màn quảng cáo giả.",
+      "flow": "Tải nội bộ → trang chủ; lỗi → thử lại.",
+      "component_ids": [
+        "CMP-009"
+      ],
+      "button_ids": [],
+      "state_ids": [
+        "ST-002",
+        "ST-001",
+        "ST-033"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0026",
+        "IMG-CHR-0066"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-002": {
+      "key": "welcome",
+      "name": "Chào bé",
+      "layout": "Thỏ chào bên cạnh tên ứng dụng; nút Bắt đầu, nghe lời chào, bỏ qua.",
+      "flow": "Lần đầu, vào trang chủ ngay khi bé chọn.",
+      "component_ids": [
+        "CMP-002",
+        "CMP-009",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-003",
+        "BTN-006",
+        "BTN-015"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-003",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0026",
+        "IMG-CHR-0066"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-003": {
+      "key": "home",
+      "name": "Trang chủ 6 khu vực",
+      "layout": "Tên Hello Thục Quyên; 6 thẻ 2 cột × 3 hàng nếu đủ chỗ, mỗi thẻ một tranh; khu vườn và phụ huynh ở thanh dưới.",
+      "flow": "Chọn khu vực → danh sách chủ đề; mở vườn; cổng phụ huynh; khôi phục nếu có.",
+      "component_ids": [
+        "CMP-004",
+        "CMP-001",
+        "CMP-053",
+        "CMP-003",
+        "CMP-046"
+      ],
+      "button_ids": [
+        "BTN-034",
+        "BTN-039",
+        "BTN-011",
+        "BTN-009",
+        "BTN-022",
+        "BTN-023"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-024",
+        "ST-029",
+        "ST-033"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0026",
+        "IMG-CHR-0064"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-004": {
+      "key": "area",
+      "name": "Danh sách chủ đề trong khu vực",
+      "layout": "Tranh đại diện từng chủ đề, tối đa 5 thẻ/trang; nhãn trang bằng chấm; không khóa.",
+      "flow": "Chọn chủ đề → danh sách bài; quay lại trang chủ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-005",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-007",
+        "ST-033"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-005": {
+      "key": "topic",
+      "name": "Danh sách nhóm bài học",
+      "layout": "Bìa chủ đề và 2–4 thẻ bài/trang; mã bài chỉ dữ liệu nội bộ, không hiện cho bé.",
+      "flow": "Chọn bài; mở lại bài đang dở; không yêu cầu tuần tự.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-006",
+        "CMP-053",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023",
+        "BTN-011"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-024",
+        "ST-033"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-006": {
+      "key": "lesson",
+      "name": "Mở bài và giới thiệu",
+      "layout": "Tranh bìa bài, lời cô, nút Khám phá/Chơi; không kiểm tra ngay.",
+      "flow": "Mở khám phá hoặc chọn mức độ; về chủ đề.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-009",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-004",
+        "BTN-005",
+        "BTN-006",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-004",
+        "ST-001",
+        "ST-030",
+        "ST-033"
+      ],
+      "fixed_art_ids": [
+        "IMG-CHR-0028"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-007": {
+      "key": "levels",
+      "name": "Chọn ba mức độ",
+      "layout": "Ba thẻ khám phá, thông minh, thử tài có hình; trên máy nhỏ dùng 3 thẻ dọc; không ghi yếu/giỏi.",
+      "flow": "Chọn mức → nhiệm vụ 1/2; không khóa.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-007",
+        "CMP-002"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-005",
+        "BTN-006"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-007",
+        "ST-024"
+      ],
+      "fixed_art_ids": [
+        "IMG-CHR-0064"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-008": {
+      "key": "explore_cards",
+      "name": "Khám phá thẻ tranh và âm",
+      "layout": "Một tranh chính, tên ngắn tùy nội dung, nút nghe, trang trước/sau; tự do khám phá.",
+      "flow": "Thẻ theo nguồn bài; chuyển thẻ do bé chọn; vào chơi.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-009",
+        "CMP-002",
+        "CMP-053",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-007",
+        "BTN-022",
+        "BTN-023",
+        "BTN-005",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-006",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0022"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-009": {
+      "key": "letter_library",
+      "name": "Thư viện 29 chữ tiếng Việt",
+      "layout": "Lưới tối đa 4–6 chữ/trang; nhóm chữ tương tự; một nút mở thẻ.",
+      "flow": "Chọn chữ → thẻ chữ; quay lại bài.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-019",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-007"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0037"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-010": {
+      "key": "letter_detail",
+      "name": "Thẻ chữ và tranh liên tưởng",
+      "layout": "Chữ hoa và thường lớn, tranh liên tưởng tách nền; nút nghe tên và âm nếu đã được duyệt riêng.",
+      "flow": "Nghe, xem tranh, đổi thẻ; không buộc đọc.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-019",
+        "CMP-009",
+        "CMP-002",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-007",
+        "BTN-006",
+        "BTN-022",
+        "BTN-023",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0037"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-011": {
+      "key": "number_library",
+      "name": "Thẻ số 0–10",
+      "layout": "Chữ số lớn và nhóm vật tương ứng, 1 thẻ/lần; nút nghe và đếm.",
+      "flow": "Chạm vật, nghe số; sang thẻ do bé chọn.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-016",
+        "CMP-017",
+        "CMP-002",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-007",
+        "BTN-022",
+        "BTN-023",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-006"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0042"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-012": {
+      "key": "english_home",
+      "name": "Hello English",
+      "layout": "10 nhóm theo trang, tranh lớn, không hiện khối từ dài; phần mở rộng tự chọn.",
+      "flow": "Chọn 17.01–17.10; không buộc mở rộng.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-005",
+        "CMP-053",
+        "CMP-002"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023",
+        "BTN-011"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-024"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0038",
+        "IMG-EDU-0215"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-013": {
+      "key": "english_card",
+      "name": "Thẻ từ và cụm từ",
+      "layout": "Ảnh/cảnh, loa nghe Anh–Anh, từ viết phụ trợ; phân nhóm cốt lõi/mở rộng cho phụ huynh.",
+      "flow": "Nghe, chọn thẻ khác; không ghi âm hoặc đánh vần.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-009",
+        "CMP-002",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-007",
+        "BTN-006",
+        "BTN-022",
+        "BTN-023",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0038"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-014": {
+      "key": "english_phrase",
+      "name": "Thẻ giao tiếp",
+      "layout": "Một tranh tình huống, nút nghe câu, hình hành động phản hồi; lời dịch chỉ hỗ trợ khi cần.",
+      "flow": "Nghe, chỉ hình/cử chỉ tự nguyện; chọn tiếp.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-034",
+        "CMP-029",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-007",
+        "BTN-006",
+        "BTN-014",
+        "BTN-015",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-016",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0038"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-015": {
+      "key": "story_library",
+      "name": "Thư viện truyện, thơ và bài hát",
+      "layout": "Bìa 2–4 truyện/trang, phân Việt/Anh bằng hình/nhãn; không quảng cáo.",
+      "flow": "Chọn truyện → trang truyện; bài hát → trang lời/vận động.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-006",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-007"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0035",
+        "IMG-BG-0012"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-016": {
+      "key": "story_reader",
+      "name": "Trang kể chuyện",
+      "layout": "Một cảnh lớn mỗi trang; câu ngắn dưới tranh; nghe lại cảnh; mũi tên trước/sau.",
+      "flow": "Duyệt cảnh đúng thứ tự nguồn; bé chuyển trang; sang nhiệm vụ liên quan.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-034",
+        "CMP-002",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-007",
+        "BTN-008",
+        "BTN-006",
+        "BTN-022",
+        "BTN-023",
+        "BTN-010"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-006",
+        "ST-023",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0012"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-017": {
+      "key": "song_reader",
+      "name": "Trang nghe hát và thơ",
+      "layout": "Tranh theo đoạn, nút phát/dừng; chữ phụ; biểu tượng vận động an toàn.",
+      "flow": "Nghe, dừng hoặc vận động cùng người lớn; không chấm giọng.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-034",
+        "CMP-029",
+        "CMP-035",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-007",
+        "BTN-008",
+        "BTN-022",
+        "BTN-023",
+        "BTN-010",
+        "BTN-015"
+      ],
+      "state_ids": [
+        "ST-003",
+        "ST-005",
+        "ST-022",
+        "ST-023",
+        "ST-030"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0043"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "content-portrait",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-018": {
+      "key": "play_library",
+      "name": "Kho trò chơi",
+      "layout": "Thẻ hình thức chơi và truyện; chọn nhiệm vụ từ 660 mã đã duyệt, không sinh nội dung mới.",
+      "flow": "Chọn game → bài/mức đã liên kết; quay lại.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-006",
+        "CMP-053",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023",
+        "BTN-011"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-024"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0031"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-019": {
+      "key": "pause_panel",
+      "name": "Bảng nghỉ và tạm dừng",
+      "layout": "Tranh Thỏ bình tĩnh, chơi tiếp, về nhà; không đếm ngược hay dọa mất quà.",
+      "flow": "Lưu bước hiện tại; chơi tiếp hoặc rời.",
+      "component_ids": [
+        "CMP-052",
+        "CMP-045"
+      ],
+      "button_ids": [
+        "BTN-011",
+        "BTN-001",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-023",
+        "ST-024"
+      ],
+      "fixed_art_ids": [
+        "IMG-CHR-0064"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-020": {
+      "key": "resume_panel",
+      "name": "Mời tiếp tục bài đang dở",
+      "layout": "Thẻ bài, tranh nhận biết, hai nút Chơi tiếp/Chọn bài khác.",
+      "flow": "Khôi phục đúng nhiệm vụ và bước đã lưu.",
+      "component_ids": [
+        "CMP-006",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-011",
+        "BTN-015",
+        "BTN-001"
+      ],
+      "state_ids": [
+        "ST-024",
+        "ST-001"
+      ],
+      "fixed_art_ids": [
+        "IMG-CHR-0064"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-021": {
+      "key": "activity_end",
+      "name": "Kết thúc hoạt động",
+      "layout": "Hình chúc mừng nhẹ, ghi nhận đã tham gia/hoàn thành; nghỉ hoặc về chủ đề.",
+      "flow": "Lưu tiến trình, quà nếu đủ điều kiện; không tự mở lượt.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-036",
+        "CMP-003",
+        "CMP-038"
+      ],
+      "button_ids": [
+        "BTN-032",
+        "BTN-033",
+        "BTN-014",
+        "BTN-012",
+        "BTN-001",
+        "BTN-034"
+      ],
+      "state_ids": [
+        "ST-025",
+        "ST-016",
+        "ST-026"
+      ],
+      "fixed_art_ids": [
+        "IMG-CHR-0072",
+        "IMG-RWD-0024"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-022": {
+      "key": "reward_open",
+      "name": "Nhận quà",
+      "layout": "Hộp quà và vật phẩm lớn, chọn mở/để sau; không cơ chế may rủi.",
+      "flow": "Ghi nhận một lần; túi đồ hoặc về nhà.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-038",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-032",
+        "BTN-033",
+        "BTN-034",
+        "BTN-001"
+      ],
+      "state_ids": [
+        "ST-026",
+        "ST-027",
+        "ST-025"
+      ],
+      "fixed_art_ids": [
+        "IMG-RWD-0026",
+        "IMG-RWD-0027",
+        "IMG-RWD-0031"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-023": {
+      "key": "garden",
+      "name": "Khu vườn của bé",
+      "layout": "Bối cảnh ao/cỏ/lối đi, vật phẩm đã sở hữu; chế độ ngắm và đặt; nút túi đồ.",
+      "flow": "Mở túi → chọn vị trí; cất/di chuyển; lưu cục bộ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-039",
+        "CMP-040",
+        "CMP-046",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-035",
+        "BTN-036",
+        "BTN-037",
+        "BTN-038",
+        "BTN-018",
+        "BTN-012"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-028",
+        "ST-029",
+        "ST-023"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0017",
+        "IMG-BG-0018"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-024": {
+      "key": "inventory",
+      "name": "Túi vật phẩm",
+      "layout": "Lưới 4–6 thẻ/trang, trạng thái đã đặt/còn trong túi; không khóa/mua.",
+      "flow": "Chọn vật → sân vườn; cất vật không mất.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-040",
+        "CMP-053",
+        "CMP-046",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-022",
+        "BTN-023",
+        "BTN-036"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-027",
+        "ST-028",
+        "ST-029"
+      ],
+      "fixed_art_ids": [
+        "IMG-BG-0018"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-025": {
+      "key": "parent_gate",
+      "name": "Cổng người lớn",
+      "layout": "Xác nhận người lớn, ví dụ câu hỏi dạng số do người lớn đọc; không sử dụng thông tin bé.",
+      "flow": "Qua cổng → tổng quan; thất bại quay về, không dụ trẻ thử.",
+      "component_ids": [
+        "CMP-041",
+        "CMP-045"
+      ],
+      "button_ids": [
+        "BTN-040",
+        "BTN-047"
+      ],
+      "state_ids": [
+        "ST-031",
+        "ST-032"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-026": {
+      "key": "parent_home",
+      "name": "Tổng quan phụ huynh",
+      "layout": "Nhóm cài đặt, tiến trình, thời lượng, thông tin và đặt lại; ít hình, rõ chữ.",
+      "flow": "Chọn từng chức năng, về khu vực trẻ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-042",
+        "CMP-044"
+      ],
+      "button_ids": [
+        "BTN-002",
+        "BTN-041",
+        "BTN-042",
+        "BTN-043",
+        "BTN-044",
+        "BTN-045",
+        "BTN-046"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-031"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-027": {
+      "key": "parent_progress",
+      "name": "Theo dõi học tập",
+      "layout": "17 chủ đề, nhóm đã mở/tham gia/hoàn thành; nội dung gợi ý ôn; không xếp hạng.",
+      "flow": "Xem chủ đề, về tổng quan; dữ liệu chỉ cục bộ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-044",
+        "CMP-053",
+        "CMP-046"
+      ],
+      "button_ids": [
+        "BTN-002",
+        "BTN-022",
+        "BTN-023"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-029",
+        "ST-033"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-028": {
+      "key": "parent_audio",
+      "name": "Cài đặt âm thanh",
+      "layout": "Giọng cô, tiếng Anh, nhạc, hiệu ứng, âm lượng và tốc độ nghe; nút nghe mẫu.",
+      "flow": "Lưu cục bộ, thử mẫu từng lần; không thay giọng nguồn.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-042",
+        "CMP-043",
+        "CMP-029"
+      ],
+      "button_ids": [
+        "BTN-002",
+        "BTN-049",
+        "BTN-050",
+        "BTN-007",
+        "BTN-008",
+        "BTN-048"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-030",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-029": {
+      "key": "parent_time",
+      "name": "Thời lượng và nghỉ",
+      "layout": "Chọn thời gian sử dụng đề xuất, bật nhắc nghỉ; không theo dõi từ xa.",
+      "flow": "Nhắc nghỉ tại ranh giới hoạt động; có thể kết thúc an toàn.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-042",
+        "CMP-045"
+      ],
+      "button_ids": [
+        "BTN-002",
+        "BTN-049",
+        "BTN-048"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-032",
+        "ST-023"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-030": {
+      "key": "parent_access",
+      "name": "Hỗ trợ thao tác",
+      "layout": "Chạm thay kéo, chữ lớn, giảm chuyển động, nhạc nền; mô tả thử.",
+      "flow": "Lưu lựa chọn; không thay nội dung học.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-042"
+      ],
+      "button_ids": [
+        "BTN-002",
+        "BTN-049",
+        "BTN-048"
+      ],
+      "state_ids": [
+        "ST-001",
+        "ST-034"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-031": {
+      "key": "parent_reset",
+      "name": "Đặt lại tiến trình",
+      "layout": "Nêu rõ tiến trình/vườn sẽ bị xóa nếu đồng ý; hai bước xác nhận; không xóa kho bài.",
+      "flow": "Hủy mặc định; xác nhận người lớn; thông báo kết quả.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-045",
+        "CMP-046"
+      ],
+      "button_ids": [
+        "BTN-046",
+        "BTN-047",
+        "BTN-040",
+        "BTN-024"
+      ],
+      "state_ids": [
+        "ST-032",
+        "ST-029",
+        "ST-033"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-032": {
+      "key": "parent_about",
+      "name": "Thông tin ứng dụng và nguồn",
+      "layout": "Tên phiên bản, nguồn giáo dục, giấy phép tài nguyên, giới hạn của ứng dụng.",
+      "flow": "Đọc ngoại tuyến; không mở liên kết ngoài cho trẻ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-042",
+        "CMP-053"
+      ],
+      "button_ids": [
+        "BTN-002",
+        "BTN-022",
+        "BTN-023"
+      ],
+      "state_ids": [
+        "ST-001"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-033": {
+      "key": "error_panel",
+      "name": "Khôi phục lỗi nội bộ",
+      "layout": "Tranh trung tính, nút thử lại và về nhà; không dùng nội dung thay thế sai.",
+      "flow": "Thử lại; ghi nhận lỗi kỹ thuật cục bộ; bảo toàn tiến trình.",
+      "component_ids": [
+        "CMP-047",
+        "CMP-003"
+      ],
+      "button_ids": [
+        "BTN-017",
+        "BTN-001"
+      ],
+      "state_ids": [
+        "ST-033",
+        "ST-001"
+      ],
+      "fixed_art_ids": [
+        "IMG-CHR-0074"
+      ],
+      "task_count": 0,
+      "task_ids": [],
+      "source_interaction": null,
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-034": {
+      "key": "select_cards",
+      "name": "Chọn một hình",
+      "layout": "Tranh dữ kiện trên, 2–5 thẻ đồng cỡ dưới; nếu chỉ một lựa chọn là khám phá/ xác nhận theo nguồn, không thêm đáp án giả.",
+      "flow": "Chạm một thẻ; kiểm tra theo nguồn; gợi ý sau lượt thử.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-027",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 191,
+      "task_ids": [
+        "01.01-L1-Q01",
+        "01.01-L1-Q02",
+        "01.01-L3-Q01",
+        "01.01-L3-Q02",
+        "01.02-L1-Q01",
+        "01.02-L1-Q02",
+        "01.05-L1-Q01",
+        "01.05-L1-Q02",
+        "01.05-L2-Q02",
+        "02.01-L1-Q01",
+        "02.01-L1-Q02",
+        "02.01-L3-Q01",
+        "02.01-L3-Q02",
+        "02.02-L1-Q01",
+        "02.02-L1-Q02",
+        "02.02-L3-Q01",
+        "02.02-L3-Q02",
+        "02.03-L1-Q01",
+        "02.03-L1-Q02",
+        "02.03-L3-Q01",
+        "02.03-L3-Q02",
+        "02.04-L1-Q01",
+        "02.04-L1-Q02",
+        "03.01-L1-Q01",
+        "03.01-L1-Q02",
+        "03.01-L3-Q01",
+        "03.01-L3-Q02",
+        "03.04-L1-Q01",
+        "03.04-L1-Q02",
+        "03.04-L3-Q01",
+        "03.04-L3-Q02",
+        "03.08-L1-Q01",
+        "03.08-L1-Q02",
+        "04.03-L1-Q01",
+        "04.03-L1-Q02",
+        "04.05-L1-Q01",
+        "04.05-L1-Q02",
+        "04.07-L1-Q02",
+        "04.07-L2-Q01",
+        "04.07-L2-Q02",
+        "06.01-L1-Q01",
+        "06.01-L1-Q02",
+        "06.01-L3-Q02",
+        "06.02-L1-Q01",
+        "06.02-L1-Q02",
+        "06.02-L3-Q01",
+        "06.02-L3-Q02",
+        "06.03-L1-Q01",
+        "06.03-L1-Q02",
+        "06.03-L3-Q01",
+        "06.03-L3-Q02",
+        "06.04-L1-Q01",
+        "06.04-L1-Q02",
+        "06.04-L3-Q02",
+        "06.06-L2-Q01",
+        "06.06-L2-Q02",
+        "06.06-L3-Q01",
+        "06.06-L3-Q02",
+        "07.01-L1-Q01",
+        "07.01-L1-Q02",
+        "07.02-L1-Q01",
+        "07.02-L1-Q02",
+        "07.02-L3-Q01",
+        "07.03-L1-Q02",
+        "07.03-L3-Q01",
+        "07.03-L3-Q02",
+        "07.05-L1-Q01",
+        "07.05-L1-Q02",
+        "08.01-L1-Q01",
+        "08.01-L1-Q02",
+        "08.01-L3-Q01",
+        "08.01-L3-Q02",
+        "08.02-L1-Q01",
+        "08.02-L1-Q02",
+        "08.03-L1-Q02",
+        "08.03-L2-Q02",
+        "08.04-L1-Q01",
+        "08.04-L1-Q02",
+        "08.04-L3-Q01",
+        "08.04-L3-Q02",
+        "08.05-L1-Q01",
+        "08.05-L1-Q02",
+        "08.05-L2-Q02",
+        "09.01-L1-Q01",
+        "09.01-L3-Q01",
+        "09.01-L3-Q02",
+        "09.02-L1-Q01",
+        "09.02-L1-Q02",
+        "09.02-L3-Q01",
+        "09.02-L3-Q02",
+        "09.03-L2-Q02",
+        "09.04-L1-Q02",
+        "09.04-L2-Q02",
+        "09.05-L1-Q01",
+        "09.05-L1-Q02",
+        "09.05-L3-Q01",
+        "09.05-L3-Q02",
+        "09.06-L1-Q01",
+        "09.06-L1-Q02",
+        "09.06-L2-Q02",
+        "09.07-L1-Q01",
+        "09.07-L1-Q02",
+        "09.07-L3-Q01",
+        "09.07-L3-Q02",
+        "10.01-L1-Q01",
+        "10.01-L1-Q02",
+        "10.01-L3-Q01",
+        "10.02-L1-Q01",
+        "10.02-L1-Q02",
+        "10.03-L1-Q01",
+        "10.03-L1-Q02",
+        "10.05-L1-Q02",
+        "11.01-L2-Q01",
+        "11.01-L2-Q02",
+        "11.02-L1-Q01",
+        "11.02-L1-Q02",
+        "11.02-L2-Q01",
+        "11.02-L2-Q02",
+        "11.04-L1-Q01",
+        "11.04-L1-Q02",
+        "11.04-L2-Q02",
+        "11.04-L3-Q01",
+        "11.04-L3-Q02",
+        "11.05-L2-Q01",
+        "11.05-L2-Q02",
+        "11.05-L3-Q01",
+        "11.05-L3-Q02",
+        "11.06-L1-Q01",
+        "11.06-L1-Q02",
+        "12.01-L1-Q01",
+        "12.01-L1-Q02",
+        "12.01-L3-Q01",
+        "12.01-L3-Q02",
+        "12.02-L1-Q01",
+        "12.02-L1-Q02",
+        "12.03-L1-Q01",
+        "12.03-L1-Q02",
+        "12.03-L3-Q01",
+        "12.03-L3-Q02",
+        "12.04-L1-Q01",
+        "12.04-L1-Q02",
+        "13.02-L2-Q01",
+        "13.02-L2-Q02",
+        "14.01-L1-Q01",
+        "14.01-L1-Q02",
+        "15.04-L1-Q01",
+        "15.04-L1-Q02",
+        "15.07-L2-Q02",
+        "17.01-L1-Q01",
+        "17.01-L1-Q02",
+        "17.01-L2-Q01",
+        "17.01-L2-Q02",
+        "17.02-L1-Q01",
+        "17.02-L1-Q02",
+        "17.02-L2-Q01",
+        "17.02-L2-Q02",
+        "17.03-L1-Q01",
+        "17.03-L1-Q02",
+        "17.03-L2-Q01",
+        "17.03-L2-Q02",
+        "17.03-L3-Q01",
+        "17.03-L3-Q02",
+        "17.04-L1-Q01",
+        "17.04-L1-Q02",
+        "17.04-L2-Q01",
+        "17.04-L2-Q02",
+        "17.04-L3-Q01",
+        "17.04-L3-Q02",
+        "17.05-L1-Q01",
+        "17.05-L1-Q02",
+        "17.05-L2-Q01",
+        "17.05-L2-Q02",
+        "17.05-L3-Q01",
+        "17.06-L1-Q01",
+        "17.06-L1-Q02",
+        "17.06-L2-Q01",
+        "17.06-L2-Q02",
+        "17.06-L3-Q01",
+        "17.06-L3-Q02",
+        "17.08-L1-Q01",
+        "17.08-L1-Q02",
+        "17.08-L2-Q01",
+        "17.08-L2-Q02",
+        "17.08-L3-Q01",
+        "17.09-L1-Q01",
+        "17.09-L1-Q02",
+        "17.09-L2-Q01",
+        "17.09-L2-Q02",
+        "17.10-L1-Q01",
+        "17.10-L1-Q02",
+        "17.10-L2-Q01"
+      ],
+      "source_interaction": "select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-035": {
+      "key": "select_compare",
+      "name": "Chọn bằng so sánh",
+      "layout": "Hai/ba nhóm vật hoặc tranh cùng tỷ lệ; đặt cạnh nhau; giữ chênh lệch kích thước/số lượng thật.",
+      "flow": "Chạm nhóm phù hợp; không làm nổi bật đáp án trước.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-028",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 10,
+      "task_ids": [
+        "03.05-L1-Q01",
+        "03.05-L1-Q02",
+        "03.05-L2-Q01",
+        "03.05-L2-Q02",
+        "04.01-L1-Q01",
+        "04.01-L1-Q02",
+        "04.01-L3-Q01",
+        "04.01-L3-Q02",
+        "04.06-L1-Q01",
+        "04.06-L1-Q02"
+      ],
+      "source_interaction": "select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-036": {
+      "key": "select_audio",
+      "name": "Nghe mẫu rồi chọn",
+      "layout": "Loa mẫu lớn phía trên; thẻ hình hoặc âm trung tính dưới; tên đáp án ẩn.",
+      "flow": "Phát một mẫu riêng; nghe lại hoặc chọn; không nói tên đáp án.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-029",
+        "CMP-030",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-007",
+        "BTN-008"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 19,
+      "task_ids": [
+        "05.05-L1-Q01",
+        "05.05-L1-Q02",
+        "05.05-L2-Q01",
+        "05.05-L2-Q02",
+        "06.04-L3-Q01",
+        "06.05-L1-Q01",
+        "06.05-L1-Q02",
+        "06.05-L3-Q01",
+        "06.05-L3-Q02",
+        "09.01-L1-Q02",
+        "09.04-L1-Q01",
+        "10.04-L1-Q01",
+        "10.04-L1-Q02",
+        "15.01-L1-Q01",
+        "15.01-L1-Q02",
+        "15.02-L1-Q01",
+        "15.02-L1-Q02",
+        "15.04-L2-Q01",
+        "15.04-L2-Q02"
+      ],
+      "source_interaction": "select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-037": {
+      "key": "select_scene",
+      "name": "Chọn tranh tình huống",
+      "layout": "2–3 tranh cảnh đồng cỡ; phân biệt hành vi qua hành động, không viền xanh/đỏ trước.",
+      "flow": "Chạm tranh; giải thích ngắn sau kiểm tra; không dùng cảnh gây sợ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-034",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 59,
+      "task_ids": [
+        "10.01-L3-Q02",
+        "10.02-L3-Q01",
+        "10.02-L3-Q02",
+        "10.03-L3-Q01",
+        "10.03-L3-Q02",
+        "10.05-L1-Q01",
+        "10.05-L2-Q02",
+        "10.05-L3-Q01",
+        "10.05-L3-Q02",
+        "13.04-L1-Q01",
+        "13.04-L1-Q02",
+        "13.04-L2-Q02",
+        "13.06-L1-Q01",
+        "13.06-L1-Q02",
+        "13.07-L1-Q01",
+        "13.07-L1-Q02",
+        "13.07-L2-Q02",
+        "13.07-L3-Q01",
+        "13.07-L3-Q02",
+        "14.02-L1-Q01",
+        "14.02-L1-Q02",
+        "14.02-L2-Q01",
+        "14.02-L2-Q02",
+        "14.03-L1-Q01",
+        "14.03-L1-Q02",
+        "14.03-L2-Q01",
+        "14.03-L2-Q02",
+        "14.04-L1-Q01",
+        "14.04-L1-Q02",
+        "14.04-L2-Q02",
+        "14.05-L1-Q01",
+        "14.05-L1-Q02",
+        "14.05-L3-Q01",
+        "14.05-L3-Q02",
+        "14.06-L1-Q01",
+        "14.06-L1-Q02",
+        "14.06-L2-Q01",
+        "14.06-L2-Q02",
+        "14.07-L1-Q01",
+        "14.07-L1-Q02",
+        "14.07-L2-Q01",
+        "14.07-L2-Q02",
+        "16.01-L1-Q01",
+        "16.01-L1-Q02",
+        "16.01-L2-Q02",
+        "16.02-L1-Q01",
+        "16.02-L1-Q02",
+        "16.02-L2-Q01",
+        "16.02-L2-Q02",
+        "16.03-L1-Q02",
+        "16.03-L2-Q02",
+        "16.04-L1-Q02",
+        "16.04-L2-Q02",
+        "16.05-L1-Q01",
+        "16.05-L1-Q02",
+        "16.05-L2-Q02",
+        "16.06-L1-Q01",
+        "16.06-L1-Q02",
+        "16.06-L2-Q02"
+      ],
+      "source_interaction": "select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-038": {
+      "key": "select_letter",
+      "name": "Nhận diện chữ/số qua mẫu",
+      "layout": "Glyph chữ/số lớn, mẫu cố định nếu nguồn có; 2–4 lựa chọn.",
+      "flow": "Chạm chữ/hình; nghe lại; không sinh chữ sai dấu.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-019",
+        "CMP-016",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 12,
+      "task_ids": [
+        "05.01-L1-Q01",
+        "05.01-L1-Q02",
+        "05.01-L3-Q01",
+        "05.01-L3-Q02",
+        "05.02-L1-Q01",
+        "05.02-L1-Q02",
+        "05.03-L3-Q01",
+        "05.03-L3-Q02",
+        "05.08-L1-Q01",
+        "05.08-L1-Q02",
+        "05.08-L3-Q01",
+        "05.08-L3-Q02"
+      ],
+      "source_interaction": "select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-039": {
+      "key": "select_clock",
+      "name": "Nhận biết giờ đúng",
+      "layout": "Mặt đồng hồ lớn, thẻ số hoặc đồng hồ đồng cỡ; không phút lẻ.",
+      "flow": "Chọn giờ/đồng hồ phù hợp; không yêu cầu viết.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-048",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 2,
+      "task_ids": [
+        "04.08-L1-Q01",
+        "04.08-L1-Q02"
+      ],
+      "source_interaction": "select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-040": {
+      "key": "multi_cards",
+      "name": "Chọn nhiều hình",
+      "layout": "Lưới 2–6 mục; dấu chọn trung tính và nút Xong; tách mẫu khỏi lựa chọn.",
+      "flow": "Cho bỏ chọn; Xong mới đối chiếu bộ đáp án, không theo thứ tự.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-027",
+        "CMP-011",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 17,
+      "task_ids": [
+        "01.03-L3-Q01",
+        "01.03-L3-Q02",
+        "04.03-L3-Q01",
+        "04.03-L3-Q02",
+        "05.02-L3-Q01",
+        "05.02-L3-Q02",
+        "05.06-L2-Q01",
+        "05.06-L3-Q01",
+        "07.01-L3-Q02",
+        "07.05-L2-Q01",
+        "07.05-L2-Q02",
+        "08.04-L2-Q01",
+        "08.04-L2-Q02",
+        "12.05-L1-Q01",
+        "12.05-L1-Q02",
+        "13.03-L2-Q01",
+        "15.01-L2-Q02"
+      ],
+      "source_interaction": "multi_select",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-041": {
+      "key": "match_pairs",
+      "name": "Ghép hai nhóm thẻ",
+      "layout": "Hai cụm nguồn–đích, tối đa 3 cặp/lượt, cuộn trang rõ nếu nhiều; không vẽ đường đáp án trước.",
+      "flow": "Kéo hoặc chạm nguồn→đích; giữ cặp hoàn thành; không khóa thứ tự nếu không yêu cầu.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-012",
+        "CMP-013",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 70,
+      "task_ids": [
+        "01.01-L2-Q01",
+        "01.01-L2-Q02",
+        "01.03-L2-Q01",
+        "01.03-L2-Q02",
+        "02.03-L2-Q01",
+        "02.03-L2-Q02",
+        "02.04-L2-Q01",
+        "02.04-L2-Q02",
+        "03.01-L2-Q01",
+        "03.01-L2-Q02",
+        "03.02-L2-Q01",
+        "03.02-L2-Q02",
+        "03.03-L2-Q01",
+        "03.03-L2-Q02",
+        "03.08-L2-Q01",
+        "03.08-L2-Q02",
+        "04.02-L1-Q01",
+        "04.02-L1-Q02",
+        "06.01-L3-Q01",
+        "06.02-L2-Q01",
+        "06.02-L2-Q02",
+        "06.03-L2-Q01",
+        "06.03-L2-Q02",
+        "07.01-L2-Q01",
+        "07.01-L2-Q02",
+        "07.02-L3-Q02",
+        "07.03-L2-Q01",
+        "07.03-L2-Q02",
+        "08.01-L2-Q01",
+        "08.01-L2-Q02",
+        "08.02-L2-Q01",
+        "08.02-L2-Q02",
+        "09.01-L2-Q01",
+        "09.01-L2-Q02",
+        "09.02-L2-Q01",
+        "09.02-L2-Q02",
+        "09.03-L1-Q01",
+        "09.03-L1-Q02",
+        "09.04-L2-Q01",
+        "09.05-L2-Q01",
+        "10.03-L2-Q02",
+        "11.03-L1-Q01",
+        "11.03-L1-Q02",
+        "11.03-L3-Q01",
+        "11.05-L1-Q01",
+        "11.05-L1-Q02",
+        "11.06-L2-Q01",
+        "11.06-L2-Q02",
+        "12.01-L2-Q01",
+        "12.01-L2-Q02",
+        "12.02-L2-Q01",
+        "12.02-L2-Q02",
+        "12.03-L2-Q01",
+        "12.03-L2-Q02",
+        "12.04-L2-Q01",
+        "12.04-L2-Q02",
+        "12.05-L2-Q01",
+        "12.05-L2-Q02",
+        "13.01-L2-Q01",
+        "13.01-L2-Q02",
+        "13.02-L1-Q01",
+        "13.02-L1-Q02",
+        "13.03-L1-Q01",
+        "13.03-L1-Q02",
+        "13.05-L1-Q01",
+        "13.05-L1-Q02",
+        "14.01-L2-Q01",
+        "14.01-L2-Q02",
+        "14.05-L2-Q01",
+        "14.05-L2-Q02"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-042": {
+      "key": "match_sound",
+      "name": "Ghép âm và hình",
+      "layout": "Nguồn là nút nghe đánh số/hình trung tính, đích là tranh; khi phát không đọc tên.",
+      "flow": "Nghe từng mẫu, chọn cặp bằng chạm; phát lần lượt.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-029",
+        "CMP-030",
+        "CMP-012",
+        "CMP-013",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018",
+        "BTN-007",
+        "BTN-008"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 7,
+      "task_ids": [
+        "06.05-L2-Q01",
+        "06.05-L2-Q02",
+        "10.04-L2-Q01",
+        "10.04-L2-Q02",
+        "15.01-L2-Q01",
+        "15.02-L2-Q01",
+        "15.02-L2-Q02"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-043": {
+      "key": "match_shape",
+      "name": "Ghép hình vào khuôn",
+      "layout": "Khuôn lớn và mảnh rời; chia nhiều lượt khi mảnh nhỏ; khớp theo hình, giữ góc quay nguồn.",
+      "flow": "Chạm mảnh rồi khuôn hoặc kéo; cho thử lại, không yêu cầu thao tác hai ngón.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-051",
+        "CMP-012",
+        "CMP-013",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 8,
+      "task_ids": [
+        "02.01-L2-Q01",
+        "02.01-L2-Q02",
+        "02.05-L1-Q01",
+        "02.05-L1-Q02",
+        "02.05-L2-Q01",
+        "02.05-L2-Q02",
+        "15.06-L1-Q01",
+        "15.06-L1-Q02"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-044": {
+      "key": "match_letters",
+      "name": "Ghép mẫu chữ",
+      "layout": "Hai dải chữ hoa/thường/mẫu; font chuẩn; 2–3 cặp đang hoạt động, nhiều cặp chia trang.",
+      "flow": "Chạm cặp hoặc kéo; không tự phát tên đáp án trong lượt kiểm tra.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-019",
+        "CMP-012",
+        "CMP-013",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 10,
+      "task_ids": [
+        "05.02-L2-Q01",
+        "05.02-L2-Q02",
+        "05.03-L1-Q01",
+        "05.03-L1-Q02",
+        "05.03-L2-Q01",
+        "05.03-L2-Q02",
+        "05.04-L1-Q01",
+        "05.04-L1-Q02",
+        "05.04-L2-Q01",
+        "05.04-L2-Q02"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-045": {
+      "key": "match_position",
+      "name": "Đặt vật theo vị trí",
+      "layout": "Cảnh có vật chuẩn, vùng chạm đích không hiện đúng trước; giữ trái/phải theo nguồn.",
+      "flow": "Chạm vật, vị trí hoặc kéo; giữ vật chuẩn và hướng nhìn.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-050",
+        "CMP-012",
+        "CMP-021",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 2,
+      "task_ids": [
+        "04.05-L2-Q01",
+        "04.05-L2-Q02"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-046": {
+      "key": "match_clock",
+      "name": "Ghép đồng hồ và số",
+      "layout": "Mặt đồng hồ giờ đúng; thẻ số lớn hoặc sân chỉnh kim giờ; không yêu cầu phút.",
+      "flow": "Chọn cặp hoặc đặt kim theo nguồn; kim phút 12 nếu giờ đúng.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-048",
+        "CMP-016",
+        "CMP-013",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 4,
+      "task_ids": [
+        "04.08-L2-Q01",
+        "04.08-L2-Q02",
+        "04.08-L3-Q01",
+        "04.08-L3-Q02"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-047": {
+      "key": "match_action",
+      "name": "Nghe và chọn hành động",
+      "layout": "Biến thể một nguồn nghe và tranh hành động; không bắt kéo khi yêu cầu chỉ chọn.",
+      "flow": "Nghe rồi chạm hình; giữ mã interaction match từ 1.4, không tự đổi nội dung.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-029",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018",
+        "BTN-007",
+        "BTN-008"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 3,
+      "task_ids": [
+        "13.06-L2-Q01",
+        "13.06-L2-Q02",
+        "15.07-L2-Q01"
+      ],
+      "source_interaction": "match",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-048": {
+      "key": "sort_bins",
+      "name": "Phân loại vào nhóm",
+      "layout": "2–3 giỏ có hình mẫu/nhãn âm; nguồn ở khay dưới, nhóm đích lớn.",
+      "flow": "Chạm vật và giỏ hoặc kéo; cho chuyển lại; không thay đổi số vật.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-014",
+        "CMP-012",
+        "CMP-013",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 31,
+      "task_ids": [
+        "01.02-L2-Q01",
+        "01.02-L2-Q02",
+        "01.03-L1-Q01",
+        "01.03-L1-Q02",
+        "02.02-L2-Q01",
+        "02.02-L2-Q02",
+        "04.03-L2-Q01",
+        "04.03-L2-Q02",
+        "05.01-L2-Q01",
+        "05.01-L2-Q02",
+        "06.01-L2-Q01",
+        "06.01-L2-Q02",
+        "06.04-L2-Q01",
+        "06.04-L2-Q02",
+        "07.01-L3-Q01",
+        "07.02-L2-Q01",
+        "07.02-L2-Q02",
+        "07.04-L1-Q01",
+        "07.04-L1-Q02",
+        "09.06-L2-Q01",
+        "09.07-L2-Q01",
+        "09.07-L2-Q02",
+        "10.01-L2-Q01",
+        "10.01-L2-Q02",
+        "10.03-L2-Q01",
+        "10.04-L3-Q01",
+        "10.04-L3-Q02",
+        "11.03-L2-Q01",
+        "11.03-L2-Q02",
+        "11.04-L2-Q01",
+        "13.03-L2-Q02"
+      ],
+      "source_interaction": "sort",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-049": {
+      "key": "sequence_pattern",
+      "name": "Hoàn thành quy luật",
+      "layout": "Dải mẫu cố định, ô trống lớn, thẻ bổ sung tách riêng; 5–6 mẫu có thể chia 2 hàng.",
+      "flow": "Giữ mẫu gốc; xáo thẻ chỉ khi phù hợp; chạm để điền.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-027",
+        "CMP-015",
+        "CMP-012",
+        "CMP-010",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 10,
+      "task_ids": [
+        "01.04-L1-Q01",
+        "01.04-L1-Q02",
+        "01.04-L2-Q01",
+        "01.04-L2-Q02",
+        "03.04-L2-Q01",
+        "03.04-L2-Q02",
+        "04.04-L1-Q01",
+        "04.04-L1-Q02",
+        "04.04-L2-Q01",
+        "04.04-L2-Q02"
+      ],
+      "source_interaction": "sequence",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-050": {
+      "key": "sequence_order",
+      "name": "Xếp thứ tự tranh/vật",
+      "layout": "Thẻ xáo bên dưới, ô theo thứ tự trên; 3–4 thẻ/lượt, xếp 7 ngày chia nhóm liên tiếp có mốc cố định.",
+      "flow": "Chạm thẻ vào vị trí hoặc kéo; không đọc lại đáp án theo thứ tự.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-015",
+        "CMP-012",
+        "CMP-053",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 30,
+      "task_ids": [
+        "03.05-L3-Q01",
+        "03.05-L3-Q02",
+        "04.01-L2-Q01",
+        "04.01-L2-Q02",
+        "04.07-L1-Q01",
+        "04.07-L3-Q01",
+        "04.07-L3-Q02",
+        "05.08-L2-Q01",
+        "06.06-L1-Q01",
+        "06.06-L1-Q02",
+        "08.03-L1-Q01",
+        "08.03-L2-Q01",
+        "08.05-L2-Q01",
+        "09.03-L2-Q01",
+        "10.02-L2-Q01",
+        "10.05-L2-Q01",
+        "12.02-L3-Q01",
+        "12.02-L3-Q02",
+        "13.04-L2-Q01",
+        "13.05-L2-Q01",
+        "13.05-L2-Q02",
+        "13.07-L2-Q01",
+        "14.04-L2-Q01",
+        "16.01-L2-Q01",
+        "16.03-L2-Q01",
+        "16.04-L1-Q01",
+        "16.04-L2-Q01",
+        "16.05-L2-Q01",
+        "16.06-L2-Q01",
+        "17.10-L2-Q02"
+      ],
+      "source_interaction": "sequence",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-051": {
+      "key": "sequence_position",
+      "name": "Thao tác lần lượt trong cảnh",
+      "layout": "Cảnh vật chuẩn/giỏ/kệ; mỗi yêu cầu hiện một bước, giữ kết quả bước trước.",
+      "flow": "Thực hiện theo thứ tự nguồn; chạm thay kéo; không chấm khi chưa hết bước.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-050",
+        "CMP-012",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 3,
+      "task_ids": [
+        "04.05-L3-Q01",
+        "04.05-L3-Q02",
+        "11.03-L3-Q02"
+      ],
+      "source_interaction": "sequence",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-052": {
+      "key": "sequence_rhythm",
+      "name": "Xếp nhịp nghe",
+      "layout": "Nút nghe mẫu, thẻ gõ/vỗ/nghỉ, dải nhịp lớn; không hiển thị mẫu đúng trước kiểm tra.",
+      "flow": "Nghe rồi đặt nhịp; không giới hạn tốc độ; có nghe lại.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-029",
+        "CMP-031",
+        "CMP-015",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018",
+        "BTN-007",
+        "BTN-008",
+        "BTN-030",
+        "BTN-031"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 4,
+      "task_ids": [
+        "15.03-L1-Q01",
+        "15.03-L1-Q02",
+        "15.03-L2-Q01",
+        "15.03-L2-Q02"
+      ],
+      "source_interaction": "sequence",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-053": {
+      "key": "sequence_instruction",
+      "name": "Làm theo hai yêu cầu",
+      "layout": "Một cảnh có các đối tượng; dải chỉ báo từng yêu cầu, không in đáp án cho trẻ.",
+      "flow": "Nghe rồi chạm theo thứ tự; giữ yêu cầu ngôn ngữ từ nguồn.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-009",
+        "CMP-021",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 3,
+      "task_ids": [
+        "05.08-L2-Q02",
+        "07.04-L3-Q01",
+        "17.08-L3-Q02"
+      ],
+      "source_interaction": "sequence",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-054": {
+      "key": "count_pick",
+      "name": "Đếm rồi chọn thẻ số",
+      "layout": "Nhóm vật tách nhau; tối đa 10 vật, 2 hàng khi cần; thẻ số 2–3 ở dưới.",
+      "flow": "Chạm từng vật hoặc nhìn đếm; chọn số; không tự hiện tổng trước.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-017",
+        "CMP-016",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 8,
+      "task_ids": [
+        "03.02-L1-Q01",
+        "03.02-L1-Q02",
+        "03.03-L1-Q01",
+        "03.03-L1-Q02",
+        "03.03-L3-Q01",
+        "10.02-L2-Q02",
+        "17.02-L3-Q01",
+        "17.02-L3-Q02"
+      ],
+      "source_interaction": "count",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-055": {
+      "key": "count_transfer",
+      "name": "Chuyển vật, thêm bớt",
+      "layout": "Hai khay/giỏ, vật rời; số lượng nguồn hiển thị bằng vật; đích rộng.",
+      "flow": "Di chuyển bằng chạm/kéo; có hoàn tác; đối chiếu điều kiện số lượng sau Xong.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-018",
+        "CMP-017",
+        "CMP-012",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 12,
+      "task_ids": [
+        "03.02-L3-Q01",
+        "03.02-L3-Q02",
+        "03.03-L3-Q02",
+        "03.06-L1-Q01",
+        "03.06-L1-Q02",
+        "03.06-L2-Q01",
+        "03.06-L2-Q02",
+        "03.06-L3-Q01",
+        "03.06-L3-Q02",
+        "07.04-L2-Q01",
+        "07.04-L2-Q02",
+        "07.04-L3-Q02"
+      ],
+      "source_interaction": "count",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-056": {
+      "key": "count_split",
+      "name": "Gộp và tách nhóm",
+      "layout": "Hai giỏ, khay nguồn; giữ tổng vật; nếu yêu cầu nhiều cách dùng 2 khung lưu cách.",
+      "flow": "Chạm chuyển; kiểm tra tổng, điều kiện từng giỏ; không tính hoán vị là cách mới nếu nguồn quy định.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-018",
+        "CMP-017",
+        "CMP-027",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 6,
+      "task_ids": [
+        "03.07-L1-Q01",
+        "03.07-L1-Q02",
+        "03.07-L2-Q01",
+        "03.07-L2-Q02",
+        "03.07-L3-Q01",
+        "03.07-L3-Q02"
+      ],
+      "source_interaction": "count",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-057": {
+      "key": "count_measure",
+      "name": "Đo chiều dài/dung tích",
+      "layout": "Vật đo hoặc bình/cốc lớn; thước ước lệ cùng cỡ, cốc cùng dung tích theo nguồn.",
+      "flow": "Đặt que sát hoặc đổ cốc mô phỏng; đếm đơn vị; giữ dữ kiện.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-049",
+        "CMP-017",
+        "CMP-016",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 4,
+      "task_ids": [
+        "04.06-L2-Q01",
+        "04.06-L2-Q02",
+        "04.06-L3-Q01",
+        "04.06-L3-Q02"
+      ],
+      "source_interaction": "count",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-058": {
+      "key": "count_listen",
+      "name": "Đếm tiếng sau khi nghe",
+      "layout": "Loa trung tính, thẻ/chấm đếm tự chọn; không hiện chữ hoặc số lượng âm trước.",
+      "flow": "Nghe trọn câu; có thể nghe lại; không tự tách tiếng làm lộ đáp án.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-029",
+        "CMP-017",
+        "CMP-016",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-018",
+        "BTN-007",
+        "BTN-008"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 2,
+      "task_ids": [
+        "05.05-L3-Q01",
+        "05.05-L3-Q02"
+      ],
+      "source_interaction": "count",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-059": {
+      "key": "hotspot_word",
+      "name": "Chạm chữ trong từ",
+      "layout": "Từ lớn và mẫu chữ nếu có; vùng từng glyph ≥56dp, tách hàng nếu cần.",
+      "flow": "Chạm chữ, chỉ tô sáng sau khi kiểm tra; không bắt đọc từ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-020",
+        "CMP-019",
+        "CMP-021",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 3,
+      "task_ids": [
+        "05.06-L1-Q01",
+        "05.06-L1-Q02",
+        "05.06-L2-Q02"
+      ],
+      "source_interaction": "hotspot",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-060": {
+      "key": "hotspot_scene",
+      "name": "Chạm vùng trên tranh",
+      "layout": "Tranh lớn giữ tỷ lệ, vùng tương tác gắn theo tọa độ đối tượng khi sản xuất; thẻ thay thế nếu vùng nhỏ.",
+      "flow": "Chạm đúng vùng/ thẻ thay thế; không tô đáp án trước; giữ ngữ cảnh.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-009",
+        "CMP-021",
+        "CMP-010",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 10,
+      "task_ids": [
+        "07.03-L1-Q01",
+        "09.05-L2-Q02",
+        "13.01-L1-Q01",
+        "13.01-L1-Q02",
+        "15.07-L1-Q01",
+        "15.07-L1-Q02",
+        "17.07-L1-Q01",
+        "17.07-L1-Q02",
+        "17.07-L2-Q01",
+        "17.07-L2-Q02"
+      ],
+      "source_interaction": "hotspot",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-061": {
+      "key": "memory_pairs",
+      "name": "Lật thẻ tìm cặp",
+      "layout": "Lưới 2×2 hoặc 2×3; nhiệm vụ 4 cặp chia hai lượt 2 cặp nếu hẹp; không mất cặp nguồn.",
+      "flow": "Cho xem mẫu nếu cần, bé tự úp; lật hai thẻ, giữ cặp đúng; không đếm giờ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-022",
+        "CMP-053",
+        "CMP-036",
+        "CMP-003",
+        "CMP-037",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-013",
+        "BTN-017",
+        "BTN-026"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-019",
+        "ST-020"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 6,
+      "task_ids": [
+        "04.02-L2-Q01",
+        "04.02-L2-Q02",
+        "04.02-L3-Q01",
+        "04.02-L3-Q02",
+        "05.04-L3-Q01",
+        "05.04-L3-Q02"
+      ],
+      "source_interaction": "memory",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-062": {
+      "key": "trace_path",
+      "name": "Đồ nét tự nguyện",
+      "layout": "Nét mẫu lớn, vùng vẽ rộng; nút hoàn tác, làm lại, Xong; không báo điểm nét.",
+      "flow": "Vẽ theo mẫu hoặc thử lại; ghi nhận tham gia, không chấm đẹp/xấu.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-023",
+        "CMP-026",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-018",
+        "BTN-027",
+        "BTN-028",
+        "BTN-029",
+        "BTN-020",
+        "BTN-019",
+        "BTN-021"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-021"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 4,
+      "task_ids": [
+        "05.07-L1-Q01",
+        "05.07-L1-Q02",
+        "05.07-L2-Q01",
+        "05.07-L2-Q02"
+      ],
+      "source_interaction": "trace",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-063": {
+      "key": "free_draw",
+      "name": "Tô màu/vẽ tự do",
+      "layout": "Tranh nét hoặc giấy trống, bảng màu 4–6 ô/trang, công cụ lớn, hoàn tác.",
+      "flow": "Tô/vẽ, lưu cục bộ nếu bé muốn; không chấm thẩm mỹ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-024",
+        "CMP-025",
+        "CMP-026",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-018",
+        "BTN-027",
+        "BTN-028",
+        "BTN-029",
+        "BTN-020",
+        "BTN-019",
+        "BTN-021"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-021"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 10,
+      "task_ids": [
+        "01.05-L3-Q01",
+        "01.05-L3-Q02",
+        "05.07-L3-Q01",
+        "12.04-L3-Q01",
+        "15.05-L1-Q01",
+        "15.05-L1-Q02",
+        "15.05-L2-Q01",
+        "15.05-L2-Q02",
+        "15.06-L2-Q02",
+        "15.07-L3-Q01"
+      ],
+      "source_interaction": "free",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-064": {
+      "key": "free_build",
+      "name": "Ghép và bố trí sáng tạo",
+      "layout": "Sân tạo hình/đoàn tàu/tranh; khay đồ lớn, lưới nếu cần; mẫu không áp đặt.",
+      "flow": "Chạm chọn đặt, kéo hoặc hoàn tác; ghi nhận tiêu chí cấu trúc nếu có, không chấm đẹp.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-051",
+        "CMP-024",
+        "CMP-012",
+        "CMP-026",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-018",
+        "BTN-019",
+        "BTN-021"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-021"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 9,
+      "task_ids": [
+        "01.04-L3-Q01",
+        "01.04-L3-Q02",
+        "02.05-L3-Q01",
+        "02.05-L3-Q02",
+        "04.04-L3-Q01",
+        "08.02-L3-Q01",
+        "11.02-L3-Q01",
+        "15.05-L3-Q01",
+        "15.06-L2-Q01"
+      ],
+      "source_interaction": "free",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-065": {
+      "key": "free_pick",
+      "name": "Chọn theo sở thích/tiêu chí mở",
+      "layout": "Thẻ hình lớn, có thể chọn một/nhiều theo nguồn; Xong rõ ràng, không dấu đúng sai.",
+      "flow": "Chọn tự nguyện; nói/chỉ tùy thích; kiểm tra điều kiện thao tác nếu nguồn có, không phán xét sở thích.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-011",
+        "CMP-009",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-021"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 19,
+      "task_ids": [
+        "01.02-L3-Q01",
+        "02.04-L3-Q01",
+        "03.08-L3-Q01",
+        "07.05-L3-Q01",
+        "09.03-L3-Q01",
+        "11.01-L1-Q01",
+        "11.01-L3-Q01",
+        "11.02-L3-Q02",
+        "11.06-L3-Q01",
+        "12.05-L3-Q01",
+        "12.05-L3-Q02",
+        "13.03-L3-Q01",
+        "13.03-L3-Q02",
+        "14.01-L3-Q01",
+        "14.01-L3-Q02",
+        "14.02-L3-Q02",
+        "14.07-L3-Q01",
+        "17.05-L3-Q02",
+        "17.10-L3-Q01"
+      ],
+      "source_interaction": "free",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-066": {
+      "key": "free_story",
+      "name": "Kể, nhập vai, ứng xử",
+      "layout": "Tranh cảnh, nhân vật và gợi ý bằng hình; lời mời nói hoặc chỉ; không mic thu âm.",
+      "flow": "Chọn tranh/cử chỉ hoặc nói với người lớn; không chấm lời nói.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-034",
+        "CMP-009",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-018"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-021"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 22,
+      "task_ids": [
+        "11.06-L3-Q02",
+        "14.02-L3-Q01",
+        "14.03-L3-Q01",
+        "14.03-L3-Q02",
+        "14.04-L3-Q01",
+        "14.04-L3-Q02",
+        "14.06-L3-Q01",
+        "16.01-L3-Q01",
+        "16.01-L3-Q02",
+        "16.02-L3-Q01",
+        "16.02-L3-Q02",
+        "16.03-L3-Q01",
+        "16.03-L3-Q02",
+        "16.04-L3-Q01",
+        "16.04-L3-Q02",
+        "16.05-L3-Q01",
+        "16.05-L3-Q02",
+        "16.06-L3-Q01",
+        "16.06-L3-Q02",
+        "17.01-L3-Q01",
+        "17.01-L3-Q02",
+        "17.10-L3-Q02"
+      ],
+      "source_interaction": "free",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-067": {
+      "key": "free_rhythm",
+      "name": "Tự tạo nhịp/khám phá âm nhạc",
+      "layout": "Các pad âm thanh, ô nhịp hoặc nhạc cụ; nút phát/dừng, Xong.",
+      "flow": "Chạm tạo âm, dừng, nghe lại; không xếp hạng hoặc chấm tốc độ.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-031",
+        "CMP-029",
+        "CMP-015",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-018",
+        "BTN-007",
+        "BTN-008",
+        "BTN-030",
+        "BTN-031"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-009",
+        "ST-010",
+        "ST-011",
+        "ST-021",
+        "ST-005"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 7,
+      "task_ids": [
+        "04.04-L3-Q02",
+        "15.01-L3-Q01",
+        "15.01-L3-Q02",
+        "15.02-L3-Q01",
+        "15.02-L3-Q02",
+        "15.03-L3-Q01",
+        "15.07-L3-Q02"
+      ],
+      "source_interaction": "free",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-068": {
+      "key": "explore_sim",
+      "name": "Dự đoán rồi quan sát mô phỏng",
+      "layout": "Cảnh ban đầu, thẻ dự đoán tự chọn, nút xem; cảnh trước/sau, tua từng bước.",
+      "flow": "Không chấm dự đoán; giải thích kết quả sau khi xem; thực hành thật cùng người lớn nếu phù hợp.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-032",
+        "CMP-033",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016",
+        "BTN-025"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-017",
+        "ST-018"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 6,
+      "task_ids": [
+        "01.05-L2-Q01",
+        "08.03-L3-Q01",
+        "09.04-L3-Q01",
+        "09.04-L3-Q02",
+        "09.06-L3-Q02",
+        "16.03-L1-Q01"
+      ],
+      "source_interaction": "explore",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    },
+    "SCR-069": {
+      "key": "offline_invite",
+      "name": "Hoạt động cùng người lớn",
+      "layout": "Một tranh minh họa an toàn; Xong/Bỏ qua/Nghỉ; không dùng camera, mic hay bộ đếm.",
+      "flow": "Ghi nhận tự chọn; không xác nhận đạt kỹ năng thật; hỗ trợ chọn hình nếu nguồn cho phép.",
+      "component_ids": [
+        "CMP-001",
+        "CMP-002",
+        "CMP-008",
+        "CMP-035",
+        "CMP-009",
+        "CMP-003",
+        "CMP-054"
+      ],
+      "button_ids": [
+        "BTN-001",
+        "BTN-002",
+        "BTN-006",
+        "BTN-010",
+        "BTN-012",
+        "BTN-015",
+        "BTN-014",
+        "BTN-016"
+      ],
+      "state_ids": [
+        "ST-004",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-023",
+        "ST-024",
+        "ST-030",
+        "ST-033",
+        "ST-034",
+        "ST-016",
+        "ST-022"
+      ],
+      "fixed_art_ids": [],
+      "task_count": 37,
+      "task_ids": [
+        "01.02-L3-Q02",
+        "02.04-L3-Q02",
+        "03.08-L3-Q02",
+        "05.06-L3-Q02",
+        "05.07-L3-Q02",
+        "07.05-L3-Q02",
+        "08.02-L3-Q02",
+        "08.03-L3-Q02",
+        "08.05-L3-Q01",
+        "08.05-L3-Q02",
+        "09.03-L3-Q02",
+        "09.06-L3-Q01",
+        "11.01-L1-Q02",
+        "11.01-L3-Q02",
+        "12.04-L3-Q02",
+        "13.01-L3-Q01",
+        "13.01-L3-Q02",
+        "13.02-L3-Q01",
+        "13.02-L3-Q02",
+        "13.04-L3-Q01",
+        "13.04-L3-Q02",
+        "13.05-L3-Q01",
+        "13.05-L3-Q02",
+        "13.06-L3-Q01",
+        "13.06-L3-Q02",
+        "14.06-L3-Q02",
+        "14.07-L3-Q02",
+        "15.03-L3-Q02",
+        "15.04-L3-Q01",
+        "15.04-L3-Q02",
+        "15.05-L3-Q02",
+        "15.06-L3-Q01",
+        "15.06-L3-Q02",
+        "17.07-L3-Q01",
+        "17.07-L3-Q02",
+        "17.09-L3-Q01",
+        "17.09-L3-Q02"
+      ],
+      "source_interaction": "offline",
+      "reference_profiles": [
+        "compact",
+        "compact-font130",
+        "landscape",
+        "landscape-font130",
+        "portrait",
+        "tablet"
+      ],
+      "implementation_status": "pending_native_rendering_and_device_qa"
+    }
+  }
+}

@@ -376,12 +376,18 @@ class MainActivity : Activity() {
             items.forEachIndexed{i,e->if(e is UiElement.Image){r.addView(w.image(e.path),LinearLayout.LayoutParams(w.dp(cell),w.dp(cell)).apply{if(i>0)marginStart=w.dp(if(g.role=="compare_wide")minOf(12,(w.viewport.available-cell*items.size)/(items.size.coerceAtLeast(2)-1))else 2)})}}
             w.add(b,r);return
         }
-        val maxItems=when(g.role){"memory"->items.size;"pattern","context","countables","count_groups","reserve","sequence_slots","sources","destinations","bins"->items.size;else->w.viewport.pageSize(6)}
-        val key="${t.id}:$index";val chunks=items.chunked(maxItems);val pageIndex=(groupPages[key]?:0).coerceIn(0,chunks.lastIndex)
+        val key="${t.id}:${g.pager ?: index.toString()}"
+        val partitions=g.pageIndices(w.viewport)
+        val chunks=partitions.mapIndexed{n,indices->
+            val ordered=if(g.shuffle)indices.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong() xor (n.toLong() shl 32)))else indices
+            ordered.map{g.items[it]}
+        }
+        val pageIndex=(groupPages[key]?:0).coerceIn(0,chunks.lastIndex)
+        val offset=partitions.take(pageIndex).sumOf{it.size}
         val context=g.role in setOf("context","trace","hotspot","workbench","board")
         val heading=when(g.role){"sources"->"Thẻ hình";"destinations"->"Nhóm ghép";"reserve"->"Bên ngoài";"workbench"->"Sân chơi";"palette"->"Chọn hình hoặc màu";"decorations"->"Họa tiết";"sequence_slots"->"Sắp xếp";"mix_sources"->"Màu để pha";"mix_result"->"Pha màu";"listen_options"->"Nghe từng mẫu";else->null};heading?.let{w.add(b,w.text(it,18,true),8)}
         val views=chunks[pageIndex].mapIndexed{i,e->
-            val label=when(g.role){"choices"->"Lựa chọn ${pageIndex*maxItems+i+1}";"memory"->"Thẻ ${i+1}";"sources"->"Thẻ nguồn ${i+1}";"destinations"->"Thẻ đích ${i+1}";else->"Tranh ${i+1}"}
+            val label=when(g.role){"choices"->"Lựa chọn ${offset+i+1}";"memory"->"Thẻ ${i+1}";"sources"->"Thẻ nguồn ${i+1}";"destinations"->"Thẻ đích ${i+1}";else->"Tranh ${i+1}"}
             val cell=w.column().apply{background=w.rounded("white");setPadding(w.dp(6),w.dp(6),w.dp(6),w.dp(6));minimumHeight=w.dp(64);contentDescription=label;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES}
             when(e){
                 is UiElement.Image->{
@@ -410,7 +416,9 @@ class MainActivity : Activity() {
             };cell
         }
         w.grid(b,views,if(context)1 else g.columns,if(g.role=="word")80 else 100)
-        if(chunks.size>1){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex,action=active{groupPages[key]=pageIndex+1;stopAudio();render()}))}
+        // Shared pair pages have one pager after both groups. Ordered trays that require a real commit remain locked until 6.3.
+        val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
+        if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && !g.advanceRequiresCommit,action=active{groupPages[key]=pageIndex+1;stopAudio();render()}))}
     }
     override fun onResume(){super.onResume();resumed=true;if(adultInvalidated){adultInvalidated=false;home()}}
     override fun onPause(){resumed=false;stopAudio();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}

@@ -60,7 +60,24 @@ data class ZoomWindow(val left:Float,val top:Float,val width:Float,val height:Fl
         }
     }
 }
-data class UiGroup(val role: String, val columns: Int, val items: List<UiElement>, val shuffle: Boolean)
+data class UiGroup(val role: String, val columns: Int, val items: List<UiElement>, val shuffle: Boolean,
+                   val pageSizes: List<Int> = emptyList(), val objectIds: List<String> = emptyList(),
+                   val pager: String? = null, val advanceRequiresCommit: Boolean = false) {
+    init {
+        require(items.isNotEmpty())
+        require(pageSizes.isEmpty() || (pageSizes.all { it in 1..6 } && pageSizes.sum()==items.size))
+        require(objectIds.isEmpty() || (objectIds.size==items.size && objectIds.toSet().size==items.size))
+        require(pageSizes.isEmpty() || objectIds.isNotEmpty())
+        require(pager==null || (pager=="paired" && pageSizes.isNotEmpty()))
+        require(!advanceRequiresCommit || pageSizes.isNotEmpty())
+    }
+    /** Fixed source pages are partitioned before any within-page shuffle. */
+    fun pageIndices(viewport:UiViewport):List<List<Int>> {
+        if(pageSizes.isNotEmpty()){var at=0;return pageSizes.map{n->(at until at+n).toList().also{at+=n}}}
+        val maxItems=when(role){"pattern","context","countables","count_groups","reserve","sequence_slots","sources","destinations","bins","memory"->items.size;else->viewport.pageSize(6)}
+        return items.indices.toList().chunked(maxItems)
+    }
+}
 data class UiTask(val id: String, val lesson: String, val level: String, val screen: String, val prompt: String, val background: String?, val ready: Boolean, val listen: Boolean, val groups: List<UiGroup>, val choiceSlots: List<String>,val prelude:Boolean=false,val preludeImage:String?=null,val afterPrelude:List<UiGroup> = emptyList())
 class UiContent private constructor(
     val screens: Map<String,List<String>>, val screenNames: Map<String,String>, val icons: Map<String,String>,
@@ -126,9 +143,16 @@ class UiContent private constructor(
                     "speaker"->UiElement.Speaker
                     "blank"->UiElement.Blank
                     else->error("Unsupported display element")
-                } }.also{require(it.isNotEmpty())},g.b("shuffle")) }
+                } }.also{require(it.isNotEmpty())},g.b("shuffle"),
+                    g["pageSizes"]?.arr()?.map{n->(n as Number).toInt().also{require(n.toDouble()==it.toDouble())}} ?: emptyList(),
+                    g["objectIds"]?.arr()?.map{it.str()} ?: emptyList(),g.optional("pager"),g.b("advanceRequiresCommit")) }
                 val groups=parseGroups(o.a("groups"))
                 val after=parseGroups(o["afterPrelude"]?.arr() ?: emptyList())
+                for (set in listOf(groups,after)) {
+                    set.forEach{g->require(g.objectIds.all{it.startsWith(o.s("id")+":")})}
+                    val paired=set.filter{it.pager=="paired"}
+                    if(paired.isNotEmpty())require(paired.size==2 && paired.map{it.role}.toSet()==setOf("sources","destinations") && paired[0].pageSizes==paired[1].pageSizes)
+                }
                 require(o.b("ready")==groups.isNotEmpty());require(!o.b("prelude")||!o.b("ready"))
                 require(o.b("prelude")==after.isNotEmpty())
                 UiTask(o.s("id"),o.s("lesson"),o.s("level"),scr.id,o.s("prompt"),o.optional("background")?.let{path(it)},o.b("ready"),o.b("listen"),groups,o.strings("choiceSlots"),o.b("prelude"),o.optional("preludeImage")?.let{path(it)},after)
