@@ -1,7 +1,7 @@
-name: HTQ 6.2 UI verification
+name: HTQ Android native verification
 on:
   push:
-    branches: [verify-6.2]
+    branches: [main, verify-6.2]
   workflow_dispatch:
 permissions:
   contents: read
