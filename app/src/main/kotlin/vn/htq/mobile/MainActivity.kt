@@ -49,6 +49,21 @@ class MainActivity : Activity() {
     private var elapsedStudyMs=0L
     private var foregroundBegan:Long?=null
     private fun studyTimeMs()=elapsedStudyMs+(foregroundBegan?.let{SystemClock.elapsedRealtime()-it}?:0L)
+    // Count foreground child use only; never adult settings, loading, or background time.
+    private fun syncStudyClock(){
+        val running=resumed&&!closed&&f!=null&&page.screen !in parentScreens&&page.screen!="SCR-002"
+        if(running&&foregroundBegan==null)foregroundBegan=SystemClock.elapsedRealtime()
+        else if(!running&&foregroundBegan!=null){elapsedStudyMs=studyTimeMs();foregroundBegan=null}
+    }
+    private fun resetStudyClock(){elapsedStudyMs=0L;foregroundBegan=null;syncStudyClock()}
+    private val parentHandler=android.os.Handler(android.os.Looper.getMainLooper())
+    private val parentExpiry=Runnable{
+        if(!closed&&resumed&&page.screen in parentScreens&&page.screen!="SCR-025"){
+            if(f?.parent?.allowed()!=true)home()
+        }
+    }
+    private fun closeParent(){parentHandler.removeCallbacks(parentExpiry);f?.parent?.close()}
+    private fun scheduleParentExpiry(){parentHandler.removeCallbacks(parentExpiry);parentHandler.postDelayed(parentExpiry,60_000L)}
     private fun applySettings(){
         w.largeText=settings.largeText;w.reducedMotion=settings.reducedMotion;f?.backend?.settings=settings
     }
@@ -177,7 +192,12 @@ class MainActivity : Activity() {
         outState.putBundle("ui_group_pages",state)
     }
     private fun stopAudio(){f?.audio?.stop();f?.backend?.settings=settings}
-    private fun active(action:()->Unit):()->Unit={if(resumed&&!closed)action()}
+    private fun active(action:()->Unit):()->Unit={
+        if(resumed&&!closed){
+            if(page.screen in parentScreens&&page.screen!="SCR-025"&&f?.parent?.allowed()!=true)home()
+            else action()
+        }
+    }
     private fun playNonTask(path:String?){
         if(!resumed||closed||path==null)return
         val base=f?:return;require(path in base.catalog.paths && path.startsWith("audio/") && path.endsWith(".ogg"))
@@ -190,10 +210,16 @@ class MainActivity : Activity() {
     }
     private fun leaveListening(){f?.listening?.leave();preludeOpenedFor=null;listeningFailed=false}
     private fun depart(){stopMotion();clearConfirmationFor=null;if(f?.listening?.taskId!=null)leaveListening()else stopAudio();f?.backend?.settings=settings;interaction?.discardTransient()}
-    private fun push(p:Page){depart();stack.add(p);render()}
+    private fun push(p:Page){
+        depart()
+        // Navigation, not repeated rendering, records an actual lesson opening.
+        f?.let{base->if(p.screen in setOf("SCR-006","SCR-007","SCR-008","SCR-013","SCR-014")&&p.ref in base.ui.lessons)
+            base.progress.markLessonOpened(p.ref)}
+        stack.add(p);render()
+    }
     private fun replace(p:Page){depart();if(stack.isNotEmpty())stack[stack.lastIndex]=p else stack.add(p);render()}
-    private fun back(){depart();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)f?.parent?.close();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
-    private fun home(){depart();interaction=null;gardenSelection=null;f?.parent?.close();stack.clear();stack.add(Page("SCR-003"));f?.navigator?.go(Route.Home);render()}
+    private fun back(){depart();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)closeParent();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
+    private fun home(){depart();interaction=null;gardenSelection=null;closeParent();stack.clear();stack.add(Page("SCR-003"));f?.navigator?.go(Route.Home);render()}
     private fun controller(base:Foundation,t:UiTask):TaskInteraction{
         interaction?.takeIf{it.task.id==t.id}?.let{return it}
         val result=TaskInteraction(base.catalog,t)
@@ -237,6 +263,7 @@ class MainActivity : Activity() {
     private fun openTask(id:String,restore:Boolean=false){
         val base=f?:return;val task=base.ui.tasks.getValue(id)
         depart();interaction=null
+        base.progress.markLessonOpened(task.lesson)
         if(!restore){
             if(task.ready||task.prelude){base.navigator.go(Route.TaskRoute(id));base.progress.saveSession(base.sessions.snapshotForTask(id))}
             push(Page(task.screen,id))
@@ -298,6 +325,7 @@ class MainActivity : Activity() {
     private fun render(){
         stopMotion()
         val base=f?:return;val ui=base.ui;val p=page
+        syncStudyClock()
         try{
             if(p.screen in parentScreens && p.screen!="SCR-025" && !base.parent.allowed()){home();return}
             when(p.screen){
@@ -417,7 +445,7 @@ class MainActivity : Activity() {
             if(rewards.isNotEmpty())action(b,"Xem quà của bé","teal",fn={push(Page("SCR-022",p.ref))})
             if(settings.remind&&studyTimeMs()>=settings.minutes*60_000L){
                 w.add(b,w.text("Đến giờ nghỉ một chút rồi!",22,true))
-                action(b,"Về nhà nghỉ ngơi","teal",fn={elapsedStudyMs=0L;foregroundBegan=SystemClock.elapsedRealtime();home()})
+                action(b,"Về nhà nghỉ ngơi","teal",fn={resetStudyClock();home()})
             }
             action(b,"Về bài học","white",fn=::back);action(b,"Về nhà","green",fn=::home)
         })
@@ -493,6 +521,12 @@ class MainActivity : Activity() {
     }
     private fun parentReset(base:Foundation,p:Page){
         frame(base.ui,p,"Đặt lại tiến trình",{b->
+            if(p.ref=="done"){
+                heading(b,"Đã đặt lại tiến trình")
+                w.add(b,w.text("Kho bài học và cài đặt phụ huynh vẫn được giữ nguyên.",18,center=false))
+                action(b,"Về nhà","green",adult=true,fn=::home)
+                return@frame
+            }
             w.add(b,w.text("Thao tác đặt lại sẽ xóa tiến trình học và khu vườn. Kho bài học không bị xóa.",20,center=false))
             if(!p.extra){
                 action(b,"Hủy","white",adult=true,fn=::back)
@@ -502,7 +536,8 @@ class MainActivity : Activity() {
                 action(b,"Hủy","white",adult=true,fn={replace(p.copy(extra=false))})
                 action(b,"Xác nhận đặt lại","peach",adult=true,fn={
                     if(!base.parent.allowed()){home();return@action}
-                    base.progress.resetProgress();interaction=null;gardenUndo=null;gardenSelection=null;groupPages.clear();home()
+                    base.progress.resetProgress();interaction=null;gardenUndo=null;gardenSelection=null;groupPages.clear()
+                    resetStudyClock();replace(Page("SCR-031","done"))
                 })
             }
         })
@@ -572,7 +607,7 @@ class MainActivity : Activity() {
     private fun parentGate(base:Foundation,p:Page){if(challengeA !in 10..49){challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50)}
         frame(base.ui,p,"Dành cho phụ huynh",{b->w.add(b,w.text("Vui lòng để người lớn xác nhận.",20));heading(b,"$challengeA + $challengeB = ?")
             val edit=w.adultInput("Kết quả phép tính")
-            w.add(b,edit);action(b,"Xác nhận","teal",adult=true,fn={val answer=edit.text.toString().toIntOrNull();if(answer!=null&&base.parent.verifyAdultChallenge(answer,challengeA,challengeB)){replace(Page("SCR-026"))}else{base.parent.close();home()}})
+            w.add(b,edit);action(b,"Xác nhận","teal",adult=true,fn={val answer=edit.text.toString().toIntOrNull();if(answer!=null&&base.parent.verifyAdultChallenge(answer,challengeA,challengeB)){replace(Page("SCR-026"));scheduleParentExpiry()}else{closeParent();home()}})
             action(b,"Về nhà","white",adult=true,fn=::home)
         })
     }
@@ -586,22 +621,27 @@ class MainActivity : Activity() {
         action(b,"Về nhà","white",adult=true,fn=::home)
     })}
     private fun parentProgress(base:Foundation,p:Page){
-        val completed=linkedMapOf<String,String>()
-        base.progress.readableDatabase.rawQuery("SELECT task_id,kind FROM completions",null).use{c->while(c.moveToNext())completed[c.getString(0)]=c.getString(1)}
+        val completed=base.progress.recordedCompletions()
+        val opened=base.progress.openedLessons()
         frame(base.ui,p,"Theo dõi học tập",{b->
+            w.add(b,w.text("Bài đã mở: ${opened.size} / ${base.ui.lessons.size}",20,true))
             w.add(b,w.text("Nhiệm vụ đã ghi nhận: ${completed.size}",20,true))
             paginated(base.ui.topics.values.toList(),4,p,b){items->items.forEach{t->
                 val ids=t.lessons.flatMap{base.ui.lessons.getValue(it).levels}.flatMap{base.ui.levels.getValue(it).tasks}
                 val finished=ids.count{completed[it]=="validated_completion"}
                 val participated=ids.count{completed[it]=="explicit_participation_done"}
+                val seen=t.lessons.filter{it in opened}
                 w.add(b,w.column().apply{
                     background=w.rounded("white");setPadding(w.dp(12),w.dp(8),w.dp(12),w.dp(8))
                     w.add(this,w.text(t.card.title,20,true,center=false),0)
+                    w.add(this,w.text("Bài đã mở: ${seen.size} / ${t.lessons.size}",18,center=false),4)
                     w.add(this,w.text("Đã hoàn thành: $finished · Đã tham gia: $participated",18,center=false),4)
                     w.add(this,w.text("Tổng nhiệm vụ: ${ids.size}",18,center=false),4)
+                    val review=seen.firstOrNull()
+                    if(review!=null)w.add(this,w.text("Gợi ý ôn: ${base.ui.lessons.getValue(review).card.title}",18,center=false),4)
                 })
             }}
-            w.add(b,w.text("Chưa có thống kê lịch sử mở bài. Có thể cùng bé ôn lại bài đã học.",18,center=false))
+            w.add(b,w.text("Dữ liệu chỉ lưu trên thiết bị. Các bài đã mở trước bản cập nhật chỉ được ghi nhận nếu còn phiên học hoặc kết quả hoàn thành; không suy đoán lịch sử.",18,center=false))
         })
     }
     private fun parentAbout(base:Foundation,p:Page){frame(base.ui,p,"Thông tin ứng dụng",{b->
@@ -813,9 +853,9 @@ class MainActivity : Activity() {
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
         if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && committed(pageIndex),action=active{groupPages[key]=pageIndex+1;stopAudio();refreshTask()}))}
     }
-    override fun onResume(){super.onResume();resumed=true;foregroundBegan=SystemClock.elapsedRealtime();if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
-    override fun onPause(){elapsedStudyMs=studyTimeMs();foregroundBegan=null;resumed=false;depart();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
+    override fun onResume(){super.onResume();resumed=true;syncStudyClock();if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
+    override fun onPause(){resumed=false;syncStudyClock();depart();closeParent();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
     override fun onStop(){stopAudio();super.onStop()}
-    override fun onDestroy(){closed=true;stopMotion();stopAudio();f?.progress?.close();f=null;if(::w.isInitialized)w.clear();super.onDestroy()}
+    override fun onDestroy(){closed=true;closeParent();stopMotion();stopAudio();f?.progress?.close();f=null;if(::w.isInitialized)w.clear();super.onDestroy()}
     @Suppress("DEPRECATION") override fun onBackPressed(){if(stack.size>1)back()else super.onBackPressed()}
 }

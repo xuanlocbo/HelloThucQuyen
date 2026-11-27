@@ -62,7 +62,7 @@ fun main(args: Array<String>) {
     }
     check(HitPolicy().targetDp(32)==56 && HitPolicy().targetDp(32,true)==48 && HitPolicy().pages((1..9).map{it.toString()},99).map{it.size}==listOf(6,3))
     println("MOTION_LAYOUT_OK blocked_unauthorized=$denied reduced_paths=$reducedPaths native_state=$nativeStates")
-    var clock=1000L; val parent=ParentGate{clock};check(!parent.allowed());check(!parent.verifyAdultChallenge(25,23,24));check(parent.verifyAdultChallenge(47,23,24)&&parent.allowed());clock+=60_001;check(!parent.allowed())
+    var clock=1000L; val parent=ParentGate{clock};check(!parent.allowed());check(!parent.verifyAdultChallenge(25,23,24));check(parent.verifyAdultChallenge(47,23,24)&&parent.allowed());clock+=59_999;check(parent.allowed());clock+=1;check(!parent.allowed());check(parent.verifyAdultChallenge(47,23,24));parent.close();check(!parent.allowed());check(!parent.verifyAdultChallenge(2,1,1))
     println("PARENT_GATE_OK")
     println("HTQ_CORE_CONTRACT_CHECK_PASS")
 }

@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import vn.htq.core.*
 
-class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenHelper(context, "htq_progress.db", null, 1), ProgressStore {
+class LocalProgress(private val context: Context, private val catalog: Catalog): SQLiteOpenHelper(context, "htq_progress.db", null, 2), ProgressStore {
     private val sessionPolicy = SessionPolicy(catalog)
     private val rewardPolicy = RewardPolicy(catalog)
     override fun onConfigure(db: SQLiteDatabase) { super.onConfigure(db); db.setForeignKeyConstraintsEnabled(true) }
@@ -14,7 +14,31 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
         val schema = context.resources.openRawResource(R.raw.storage_schema).bufferedReader().use { it.readText() }
         schema.split(';').map { it.trim() }.filter { it.isNotEmpty() }.forEach { db.execSQL(it) }
     }
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) { error("No destructive migration allowed") }
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        require(oldVersion==1&&newVersion==2){"Unsupported storage migration"}
+        db.execSQL("CREATE TABLE opened_lessons (lesson_id TEXT PRIMARY KEY NOT NULL)")
+        // Infer earlier openings only from actual completion records or the saved session.
+        val known=linkedSetOf<String>()
+        db.rawQuery("SELECT task_id FROM completions",null).use{c->while(c.moveToNext()){
+            val id=c.getString(0);if(catalog.hasTask(id))known.add(catalog.childTask(id).lessonId)
+        }}
+        db.rawQuery("SELECT payload FROM session_state WHERE slot=1",null).use{c->if(c.moveToFirst()){
+            runCatching{sessionPolicy.sanitize(Json.parse(c.getString(0)).obj())?.s("lesson_id")}
+                .getOrNull()?.let{known.add(it)}
+        }}
+        known.filter{it in catalog.lessons}.forEach{insertOpened(db,it)}
+    }
+    private fun insertOpened(db:SQLiteDatabase,lessonId:String){
+        require(lessonId in catalog.lessons)
+        db.insertWithOnConflict("opened_lessons",null,ContentValues().apply{put("lesson_id",lessonId)},SQLiteDatabase.CONFLICT_IGNORE)
+    }
+    fun markLessonOpened(lessonId:String)=insertOpened(writableDatabase,lessonId)
+    fun openedLessons():Set<String> = readableDatabase.rawQuery("SELECT lesson_id FROM opened_lessons",null).use{c->
+        buildSet{while(c.moveToNext()){val id=c.getString(0);if(id in catalog.lessons)add(id)}}
+    }
+    fun recordedCompletions():Map<String,String> = readableDatabase.rawQuery("SELECT task_id,kind FROM completions",null).use{c->
+        buildMap{while(c.moveToNext()){val id=c.getString(0);if(catalog.hasTask(id))put(id,c.getString(1))}}
+    }
     override fun saveSession(snapshot: Obj) {
         val safe = requireNotNull(sessionPolicy.sanitize(snapshot)) { "Invalid session" }
         writableDatabase.insertWithOnConflict("session_state", null, ContentValues().apply { put("slot", 1); put("payload", Json.encode(safe)) }, SQLiteDatabase.CONFLICT_REPLACE)
@@ -29,6 +53,7 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
         val reward = rewardPolicy.entitlement(ticket)
         return transaction { db ->
             val inserted = db.insertWithOnConflict("completions", null, ContentValues().apply { put("task_id", reward.taskId); put("kind", reward.completionKind) }, SQLiteDatabase.CONFLICT_IGNORE)
+            insertOpened(db,catalog.childTask(reward.taskId).lessonId)
             if (inserted == -1L) false else {
                 db.insertOrThrow("reward_ledger", null, ContentValues().apply { put("task_id", reward.taskId); put("item_id", reward.itemId); put("quantity", reward.quantity); put("claimed", 0) }); true
             }
@@ -80,7 +105,7 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
         if (!owned) false else db.insertWithOnConflict("garden_placements", null, ContentValues().apply { put("task_id", taskId); put("x", x); put("y", y) }, SQLiteDatabase.CONFLICT_REPLACE)!=-1L
     }
     fun resetProgress() = transaction { db ->
-        for(table in listOf("garden_placements","garden_inventory","reward_ledger","completions","session_state"))db.delete(table,null,null)
+        for(table in listOf("garden_placements","garden_inventory","reward_ledger","completions","session_state","opened_lessons"))db.delete(table,null,null)
         Unit
     }
     fun putAway(taskId: String):Boolean = writableDatabase.delete("garden_placements", "task_id=?", arrayOf(taskId))==1

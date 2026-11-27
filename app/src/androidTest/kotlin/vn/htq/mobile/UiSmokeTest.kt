@@ -230,21 +230,43 @@ class UiSmokeTest {
             preview("SCR-022",sampleLevel.id,"Để sau")
             preview("SCR-033",label="Bé thử lại nhé!")
             // Parent screens are tested through the actual adult gate, not bypassed.
-            fun enterParent(){
+            fun enterParent(correct:Boolean=true){
                 tap("Phụ huynh",48)
                 val adultInput=await("Kết quả phép tính") as EditText
                 i.runOnMainSync{
                     val challenge=walk(a.window.decorView).filterIsInstance<TextView>().map{it.text.toString()}.first{it.matches(Regex("[0-9]+ \\+ [0-9]+ = \\?"))}
-                    adultInput.setText(Regex("[0-9]+").findAll(challenge).sumOf{it.value.toInt()}.toString())
+                    val total=Regex("[0-9]+").findAll(challenge).sumOf{it.value.toInt()}
+                    adultInput.setText((if(correct)total else total+1).toString())
                 }
-                tap("Xác nhận",48);await("Theo dõi học tập")
+                tap("Xác nhận",48)
+                if(correct)await("Theo dõi học tập")else{await("Khu vườn");assertNull(find("Theo dõi học tập"))}
             }
+            enterParent(false);enterParent()
+            tap("Theo dõi học tập",48);await("Theo dõi học tập")
+            val parentStore=LocalProgress(ctx,catalog)
+            val openedCount=try{
+                assertTrue(select.lesson in parentStore.openedLessons())
+                parentStore.openedLessons().size
+            }finally{parentStore.close()}
+            await("Bài đã mở: $openedCount / ${ui.lessons.size}")
+            tap("Quay lại")
+            // Authorization must not survive recreation/backgrounding.
+            scenario.recreate();scenario.onActivity{a=it};await("Khu vườn");assertNull(find("Theo dõi học tập"))
             enterParent()
-            tap("Theo dõi học tập",48);await("Theo dõi học tập");tap("Quay lại")
             for(label in listOf("Cài đặt âm thanh","Thời lượng và nghỉ","Hỗ trợ thao tác")){
                 tap(label,48);assertTrue(await("Lưu cài đặt").isEnabled)
                 if(label=="Hỗ trợ thao tác")tap("Giảm chuyển động",48)
+                if(label=="Cài đặt âm thanh"){
+                    val slider=await("Âm lượng nhạc") as android.widget.SeekBar
+                    i.runOnMainSync{slider.progress=35}
+                }
+                if(label=="Thời lượng và nghỉ"){
+                    val slider=await("Thời lượng sử dụng đề xuất") as android.widget.SeekBar
+                    i.runOnMainSync{slider.progress=0}
+                }
                 tap("Lưu cài đặt",48);await("Đã lưu cài đặt")
+                if(label=="Cài đặt âm thanh")assertEquals(35,prefs.getInt("music_volume",-1))
+                if(label=="Thời lượng và nghỉ")assertEquals(5,prefs.getInt("study_minutes",-1))
                 if(label=="Hỗ trợ thao tác"){
                     assertTrue("Reduced motion setting was not persisted",prefs.getBoolean("reduced_motion",false))
                     assertTrue("Saved switch did not reflect setting",(await("Giảm chuyển động",true) as CompoundButton).isChecked)
@@ -252,9 +274,22 @@ class UiSmokeTest {
                 tap("Quay lại")
             }
             tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertTrue(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
+            assertEquals(1,completions(select.id));checkGardenPosition(0.5,0.5)
             tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng")
             tap("Giấy phép chữ Noto Sans",48);await("Noto Sans — SIL Open Font License 1.1");tap("Quay lại")
             tap("Nguồn âm thanh",48);await("Nguồn âm thanh");tap("Quay lại");tap("Trang chủ")
+            // Advance the isolated Activity's elapsed clock, not wall time, to check the actual rest boundary.
+            val elapsedField=MainActivity::class.java.getDeclaredField("elapsedStudyMs").apply{isAccessible=true}
+            scenario.onActivity{a=it;elapsedField.setLong(it,5*60_000L);push.invoke(it,pageCtor.newInstance("SCR-021",sampleLevel.id,0,false))}
+            await("Đến giờ nghỉ một chút rồi!");tap("Về nhà nghỉ ngơi");await("Khu vườn")
+            scenario.onActivity{assertEquals(0L,elapsedField.getLong(it))}
+            enterParent();tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);tap("Xác nhận đặt lại",48)
+            await("Đã đặt lại tiến trình")
+            val resetStore=LocalProgress(ctx,catalog)
+            try{assertTrue(resetStore.openedLessons().isEmpty());assertEquals(0,resetStore.completedCount());assertNull(resetStore.loadSession());assertTrue(resetStore.inventory().isEmpty());assertTrue(resetStore.gardenEntries().isEmpty())}finally{resetStore.close()}
+            assertEquals(35,prefs.getInt("music_volume",-1));assertTrue(prefs.getBoolean("reduced_motion",false))
+            tap("Về nhà",48);assertNull(find("Chơi tiếp"))
+            android.util.Log.i("HTQ_UI_QA","PARENT_FLOW_PASS wrong_gate=true recreation_locks=true persisted_settings=true rest_boundary=true reset_cancel_and_confirm=true")
             // One final native rendering sweep of the locked task catalogue. Do not write
             // sessions or simulate grading for these view-only checks. Navigation and
             // persistence are exercised separately above by real user routes.

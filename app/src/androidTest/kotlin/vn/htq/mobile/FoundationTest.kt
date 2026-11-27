@@ -33,6 +33,10 @@ class FoundationTest {
         context.deleteDatabase("htq_progress.db")
         try {
             val store = LocalProgress(context, catalog)
+            val lesson=catalog.childTask(ticket.taskId).lessonId
+            assertTrue(store.openedLessons().isEmpty())
+            store.markLessonOpened(lesson);store.markLessonOpened(lesson)
+            assertEquals(setOf(lesson),store.openedLessons())
             assertFalse(store.claim(ticket.taskId));assertFalse(store.place(ticket.taskId,0.5,0.5))
             assertTrue(store.commit(ticket));assertTrue(store.commit(second))
             assertFalse(store.commit(ticket));assertFalse(store.commit(second))
@@ -79,7 +83,28 @@ class FoundationTest {
             assertEquals(1,finalStore.inventoryBreakdown().single().placed)
             assertEquals(1,finalStore.inventoryBreakdown().single().inBag)
             assertTrue(finalStore.pendingRewards().isEmpty())
+            val expectedLessons=setOf(catalog.childTask(ticket.taskId).lessonId,catalog.childTask(second.taskId).lessonId)
+            assertEquals(expectedLessons,finalStore.openedLessons())
+            assertEquals(2,finalStore.recordedCompletions().size)
+            // Recreate a v1 schema with the already validated old records, then exercise SQLiteOpenHelper migration.
+            finalStore.writableDatabase.execSQL("DROP TABLE opened_lessons")
+            finalStore.writableDatabase.version=1
             finalStore.close()
+            val migrated=LocalProgress(context,catalog)
+            assertEquals(2,migrated.readableDatabase.version)
+            assertEquals(expectedLessons,migrated.openedLessons())
+            assertEquals(2,migrated.completedCount())
+            assertEquals(ticket.taskId,migrated.loadSession()!!.s("task_id"))
+            assertEquals(mapOf(item to 2),migrated.inventory())
+            assertEquals(1,migrated.inventoryBreakdown().single().placed)
+            assertEquals(0.8,migrated.gardenEntries().single{it.task==second.taskId}.x!!,0.000001)
+            assertTrue(migrated.pendingRewards().isEmpty())
+            migrated.resetProgress()
+            assertTrue(migrated.openedLessons().isEmpty());assertTrue(migrated.recordedCompletions().isEmpty())
+            assertNull(migrated.loadSession());assertTrue(migrated.inventory().isEmpty())
+            assertTrue(migrated.gardenEntries().isEmpty());assertTrue(migrated.pendingRewards().isEmpty())
+            migrated.close()
+            android.util.Log.i("HTQ_UI_QA","PARENT_STORAGE_PASS opened_dedup=true migration_preserves_v1=true reset_atomic=true")
         } finally { context.deleteDatabase("htq_progress.db") }
     }
 }
