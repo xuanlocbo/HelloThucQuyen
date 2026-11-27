@@ -191,7 +191,7 @@ jobs:
             python3 - "$qa/screens" "$home_qa" <<'PY'
           import pathlib, struct, sys
           folder = pathlib.Path(sys.argv[1])
-          names = ["01-home", "14-home-tablet", "15-home-landscape", "16-home-hd"] if sys.argv[2] == "true" else ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
+          names = ["01-home", "14-home-tablet", "15-home-landscape", "16-home-hd", "17-home-pressed", "18-home-motion"] if sys.argv[2] == "true" else ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
           for name in names:
               f = folder / (name + ".png")
               with f.open("rb") as stream:
@@ -213,6 +213,7 @@ jobs:
               grep -F APPROVED_HOME_ADAPTIVE_PASS "$qa/native-qa.log"
               grep -F APPROVED_HOME_PIXEL_PASS "$qa/native-qa.log"
               grep -F APPROVED_HOME_HD_PASS "$qa/native-qa.log"
+              grep -F APPROVED_HOME_LAYER_MOTION_PASS "$qa/native-qa.log"
             fi
           else
             gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest

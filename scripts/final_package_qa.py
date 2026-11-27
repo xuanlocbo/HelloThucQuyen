@@ -1,5 +1,6 @@
 """Verify the exact already-built development APK; never publish the APK or mark release-ready."""
 import collections
+import io
 import hashlib
 import json
 import os
@@ -46,14 +47,35 @@ with zipfile.ZipFile(apk) as z:
         assert hashlib.sha256(z.read(prefix+rel)).digest() == hashlib.sha256(path.read_bytes()).digest(), rel
     for name in ("assets/htq_ui/content.json","assets/htq-font/NotoSans-Regular.ttf","assets/htq-font/NotoSans-Bold.ttf","assets/htq-font/LICENSE-NotoSans.txt"):
         assert name in entries, name
-    home_file = root / "app/src/main/assets/htq_home/approved.webp"
-    home_sha = None
-    if home_file.is_file():
-        home_sha = hashlib.sha256(home_file.read_bytes()).hexdigest()
-        assert home_sha == "0103f6e200f910f89c230997291d8f92ae5769a2195bb5b14d2bfd3298ba257a"
-        assert hashlib.sha256(z.read("assets/htq_home/approved.webp")).hexdigest() == home_sha
-        assert z.getinfo("assets/htq_home/approved.webp").compress_type == zipfile.ZIP_STORED
-        print("HTQ_APPROVED_HOME_ART_PASS", home_sha, home_file.stat().st_size)
+    home_root = root / "app/src/main/assets/htq_home/layers"
+    home_packs = {
+        "scene.zip": "3adaa879b20b264390387da9b9b5a652fa77e1cfac3a350bdfa4957c1bca4438",
+        "header.zip": "01144c863603fcbc62eec7316efafb94cc8f01dd20311731b321bf6e1a2c9033",
+        "tiles_a.zip": "d745f96837a235474cc15f623629c1243a82336327d8d628df60bca2c257a6c1",
+        "tiles_b.zip": "82aea3f4ff685ef63d44d2db053c9510cabf08fbe8cb0b5a80788be3f2e2cc10",
+    }
+    layer_names = set()
+    layout = None
+    assert "assets/htq_home/approved.webp" not in entries
+    for name, digest in home_packs.items():
+        data = (home_root / name).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == digest
+        assert z.read("assets/htq_home/layers/" + name) == data
+        with zipfile.ZipFile(io.BytesIO(data)) as part:
+            assert part.testzip() is None
+            for entry in part.namelist():
+                assert entry not in layer_names
+                layer_names.add(entry)
+                if entry == "layout.json":
+                    layout = json.loads(part.read(entry))
+                else:
+                    image = part.read(entry)
+                    assert image[:4] == b"RIFF" and image[8:12] == b"WEBP" and image[12:16] == b"VP8L", entry
+    assert layout["source_sha256"] == "3ddbddcc5f128f480f89ee0b0d7cfcad9f29d8dfcc975349edf0de29589802c2"
+    assert len(layout["layers"]) == 16 and sum(l["kind"] == "button" for l in layout["layers"]) == 8
+    assert layer_names == {"layout.json", "scene.webp"} | {l["id"] + ".webp" for l in layout["layers"]}
+    home_sha = layout["source_sha256"]
+    print("HTQ_APPROVED_HOME_ART_PASS", home_sha, "lossless_layers=17 independent_buttons=8")
     media_counts = dict(collections.Counter(p.suffix.lower() for p in expected.values()))
     for name in entries:
         if name.startswith("assets/htq/") and name.endswith((".ogg",".webp",".png")):
@@ -71,6 +93,8 @@ report = {
     "runtime_sha256": lock["sha256"],
     "verified_packaged_runtime_files": len(expected),
     "approved_home_sha256": home_sha,
+    "approved_home_lossless_packs": home_packs,
+    "approved_home_lossless_layers": 17,
     "file_types": media_counts,
     "apk_bytes": apk.stat().st_size,
     "apk_sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),

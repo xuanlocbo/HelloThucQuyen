@@ -100,7 +100,7 @@ class UiSmokeTest {
                 }
             }
             fun shot(name:String){
-                if(!finalQa||homeQa&&name !in setOf("01-home","14-home-tablet","15-home-landscape","16-home-hd"))return
+                if(!finalQa||homeQa&&name !in setOf("01-home","14-home-tablet","15-home-landscape","16-home-hd","17-home-pressed","18-home-motion"))return
                 require(name.matches(Regex("[a-z0-9-]+")))
                 i.waitForIdleSync();SystemClock.sleep(200)
                 val output=qaShell("screencap -p /data/local/tmp/htq-qa/$name.png")
@@ -112,83 +112,122 @@ class UiSmokeTest {
             assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
             if(finalQa&&a.resources.configuration.screenWidthDp in 300..359&&a.resources.configuration.fontScale<1.15f)
                 ui.areas.forEach{assertFullyVisible(it.card.title)}
-            // Compare actual displayed pixels, not the input file or an enlarged mockup.
-            // The expected value is the integral of the original artwork over each
-            // sampled display pixel. Allow small color conversion/rounding differences.
+            // Compare real displayed pixels against independently decoded artwork.
+            // With the system animator initially disabled, no sprite/press motion is
+            // present. Only opaque interior pixels are sampled; alpha edges depend
+            // on the independent scenery and are visually reviewed in the screenshots.
             fun checkHomePixels(){
                 i.waitForIdleSync()
-                val rect=Rect()
-                i.runOnMainSync{
-                    val poster=walk(a.window.decorView).single{it.contentDescription=="Hello Thục Quyên"&&it.tag is Rect}
-                    rect.set(poster.tag as Rect)
-                    val xy=IntArray(2);poster.getLocationOnScreen(xy);rect.offset(xy[0],xy[1])
-                }
-                val source=ctx.assets.open("htq_home/approved.webp").use{android.graphics.BitmapFactory.decodeStream(it)}
+                val artwork=HomeArt.load(ctx.assets)
                 val screen=requireNotNull(i.uiAutomation.takeScreenshot())
                 try{
-                    assertTrue(rect.width()>0&&rect.height()>0)
-                    assertTrue(rect.left>=0&&rect.top>=0&&rect.right<=screen.width&&rect.bottom<=screen.height)
-                    // This check targets the original low-resolution portrait case.
-                    assertTrue(rect.width()<source.width&&rect.height()<source.height)
                     var total=0.0;var count=0
-                    for(y in 2 until rect.height()-2 step 4)for(x in 2 until rect.width()-2 step 4){
-                        val l=x.toDouble()*source.width/rect.width()
-                        val r=(x+1.0)*source.width/rect.width()
-                        val t=y.toDouble()*source.height/rect.height()
-                        val b=(y+1.0)*source.height/rect.height()
-                        var red=0.0;var green=0.0;var blue=0.0
-                        for(sy in t.toInt() until kotlin.math.ceil(b).toInt()){
-                            for(sx in l.toInt() until kotlin.math.ceil(r).toInt()){
-                                val weight=(minOf(r,sx+1.0)-maxOf(l,sx.toDouble()))*
-                                    (minOf(b,sy+1.0)-maxOf(t,sy.toDouble()))
-                                val c=source.getPixel(sx,sy)
-                                red+=android.graphics.Color.red(c)*weight
-                                green+=android.graphics.Color.green(c)*weight
-                                blue+=android.graphics.Color.blue(c)*weight
-                            }
+                    val locations=linkedMapOf<String,Rect>()
+                    i.runOnMainSync{
+                        val all=walk(a.window.decorView)
+                        assertEquals(8,all.count{it.tag?.toString()?.startsWith("htq_home_layer:")==true})
+                        assertEquals(8,all.count{it is ImageButton&&it.tag?.toString()?.startsWith("htq_home:")==true})
+                        for(layer in artwork.buttons){
+                            val v=all.single{it.tag=="htq_home:"+layer.id} as ImageButton
+                            assertNotNull("Missing native button artwork: "+layer.id,v.drawable)
+                            assertEquals(1f,v.scaleX,.001f);assertEquals(1f,v.scaleY,.001f)
+                            val rect=Rect();assertTrue(v.getGlobalVisibleRect(rect))
+                            assertEquals(v.width,rect.width());assertEquals(v.height,rect.height())
+                            locations[layer.id]=rect
                         }
-                        val area=(r-l)*(b-t)
-                        val p=screen.getPixel(rect.left+x,rect.top+y)
-                        total+=kotlin.math.abs(android.graphics.Color.red(p)-red/area)+
-                            kotlin.math.abs(android.graphics.Color.green(p)-green/area)+
-                            kotlin.math.abs(android.graphics.Color.blue(p)-blue/area)
-                        count+=3
                     }
+                    for(layer in artwork.buttons){
+                        val source=layer.bitmap;val rect=locations.getValue(layer.id)
+                        assertTrue(rect.width()<source.width&&rect.height()<source.height)
+                        assertTrue(rect.left>=0&&rect.top>=0&&rect.right<=screen.width&&rect.bottom<=screen.height)
+                        for(y in 3 until rect.height()-3 step 4)for(x in 3 until rect.width()-3 step 4){
+                            val l=x.toDouble()*source.width/rect.width();val r=(x+1.0)*source.width/rect.width()
+                            val t=y.toDouble()*source.height/rect.height();val b=(y+1.0)*source.height/rect.height()
+                            var red=0.0;var green=0.0;var blue=0.0;var opaque=true
+                            for(sy in t.toInt() until kotlin.math.ceil(b).toInt())for(sx in l.toInt() until kotlin.math.ceil(r).toInt()){
+                                val weight=(minOf(r,sx+1.0)-maxOf(l,sx.toDouble()))*(minOf(b,sy+1.0)-maxOf(t,sy.toDouble()))
+                                val c=source.getPixel(sx,sy)
+                                if(android.graphics.Color.alpha(c)!=255)opaque=false
+                                red+=android.graphics.Color.red(c)*weight;green+=android.graphics.Color.green(c)*weight;blue+=android.graphics.Color.blue(c)*weight
+                            }
+                            if(!opaque)continue
+                            val area=(r-l)*(b-t);val p=screen.getPixel(rect.left+x,rect.top+y)
+                            total+=kotlin.math.abs(android.graphics.Color.red(p)-red/area)+kotlin.math.abs(android.graphics.Color.green(p)-green/area)+kotlin.math.abs(android.graphics.Color.blue(p)-blue/area)
+                            count+=3
+                        }
+                    }
+                    assertTrue("Insufficient independent artwork samples",count>=1000)
                     val mae=total/count
-                    assertTrue("Home display differs from anti-aliased source: $mae",mae<=2.5)
-                    android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_PIXEL_PASS mae=$mae samples=$count")
-                }finally{screen.recycle();source.recycle()}
+                    assertTrue("Home tiles differ from anti-aliased source: $mae",mae<=2.5)
+                    android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_PIXEL_PASS mae=$mae samples=$count independent_tiles=8")
+                }finally{screen.recycle();artwork.scene.recycle();artwork.layers.forEach{it.bitmap.recycle()}}
             }
             if(homeQa&&a.resources.configuration.screenWidthDp in 300..359&&a.resources.displayMetrics.densityDpi<=160)checkHomePixels()
             shot("01-home")
             if(homeQa){
-                // Dispatch actual screen coordinates to prove all artwork controls have the
-                // right hit area and retain their catalog-bound routes, not just performClick.
-                fun touchHome(label:String){
-                    val v=await(label,true);val rect=Rect()
-                    i.runOnMainSync{
-                        assertTrue("Home touch target is not visible: $label",v.getGlobalVisibleRect(rect))
-                        val d=a.resources.displayMetrics.density
-                        assertTrue("Home target too small: $label",rect.width()/d>=55.5f&&rect.height()/d>=55.5f)
-                        assertTrue(v is ImageButton)
-                        assertTrue(v.contentDescription.toString()==label)
+                val priorAnimator=qaShell("settings get global animator_duration_scale").takeIf{it.matches(Regex("[0-9.]+"))}
+                try{
+                    // Existing CI disables system animations for deterministic checks.
+                    // Enable only during this targeted real home-animation exercise.
+                    qaShell("settings put global animator_duration_scale 1")
+                    SystemClock.sleep(250)
+                    scenario.recreate();scenario.onActivity{a=it};await("Khu vườn",true)
+                    fun spritePose():List<Float>{
+                        var pose=emptyList<Float>()
+                        i.runOnMainSync{
+                            val all=walk(a.window.decorView)
+                            pose=listOf("girl","rabbit","cat","cloud_left","stars").map{id->
+                                val v=all.single{it.tag=="htq_home_layer:"+id}
+                                v.translationX+v.translationY+(v.alpha-1f)*20f
+                            }
+                        }
+                        return pose
                     }
-                    val now=SystemClock.uptimeMillis()
-                    for(kind in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)){
-                        val event=android.view.MotionEvent.obtain(now,SystemClock.uptimeMillis(),kind,rect.exactCenterX(),rect.exactCenterY(),0)
-                        try{i.sendPointerSync(event)}finally{event.recycle()}
+                    val before=spritePose();SystemClock.sleep(800);val after=spritePose()
+                    assertTrue("Independent character/cloud/star layers did not animate",before.zip(after).count{(x,y)->kotlin.math.abs(x-y)>.02f}>=2)
+                    shot("18-home-motion")
+                    var touches=0
+                    fun touchHome(label:String){
+                        val v=await(label,true);val rect=Rect()
+                        i.runOnMainSync{
+                            assertTrue("Home touch target is not visible: $label",v.getGlobalVisibleRect(rect))
+                            val d=a.resources.displayMetrics.density
+                            assertTrue("Home target too small: $label",rect.width()/d>=55.5f&&rect.height()/d>=55.5f)
+                            assertTrue(v is ImageButton&&v.drawable!=null);assertEquals(label,v.contentDescription.toString())
+                        }
+                        val now=SystemClock.uptimeMillis()
+                        fun send(kind:Int){
+                            val e=android.view.MotionEvent.obtain(now,SystemClock.uptimeMillis(),kind,rect.exactCenterX(),rect.exactCenterY(),0)
+                            try{i.sendPointerSync(e)}finally{e.recycle()}
+                        }
+                        send(android.view.MotionEvent.ACTION_DOWN)
+                        try{
+                            SystemClock.sleep(160)
+                            i.runOnMainSync{assertTrue("Native button did not depress: $label",v.scaleX<.99f&&v.scaleY<.99f)}
+                            if(touches==0)shot("17-home-pressed")
+                        }finally{send(android.view.MotionEvent.ACTION_UP)}
+                        val deadline=SystemClock.elapsedRealtime()+3000
+                        var detached=false
+                        do{i.runOnMainSync{detached=!v.isAttachedToWindow};if(detached)break;SystemClock.sleep(30)}while(SystemClock.elapsedRealtime()<deadline)
+                        assertTrue("Release did not navigate: $label",detached)
+                        i.runOnMainSync{assertEquals(1f,v.scaleX,.001f);assertEquals(1f,v.scaleY,.001f)}
+                        touches++
                     }
-                    i.waitForIdleSync()
+                    ui.areas.forEach{area->
+                        touchHome(area.card.title);await("Trang chủ",true)
+                        if(area.card.id=="AREA-04")await(ui.englishGroups.first().title,true)
+                        else await(ui.topics.getValue(area.pages.first().first()).card.title,true)
+                        tap("Trang chủ")
+                    }
+                    touchHome("Khu vườn");await("Túi đồ",true);tap("Trang chủ")
+                    touchHome("Phụ huynh");await("Kết quả phép tính");assertNull(find("Theo dõi học tập"));tap("Trang chủ")
+                    assertEquals(8,touches)
+                    android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_ROUTE_PASS actual_touches=8 original_routes=true")
+                    android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_LAYER_MOTION_PASS independent_sprites=8 press_release=8 detached_cancel=true")
+                }finally{
+                    qaShell(if(priorAnimator==null)"settings delete global animator_duration_scale" else "settings put global animator_duration_scale $priorAnimator")
                 }
-                ui.areas.forEach{area->
-                    touchHome(area.card.title);await("Trang chủ",true)
-                    if(area.card.id=="AREA-04")await(ui.englishGroups.first().title,true)
-                    else await(ui.topics.getValue(area.pages.first().first()).card.title,true)
-                    tap("Trang chủ")
-                }
-                touchHome("Khu vườn");await("Túi đồ",true);tap("Trang chủ")
-                touchHome("Phụ huynh");await("Kết quả phép tính");assertNull(find("Theo dõi học tập"));tap("Trang chủ")
-                android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_ROUTE_PASS actual_touches=8 original_routes=true")
+                scenario.recreate();scenario.onActivity{a=it};await("Khu vườn",true)
             }
             tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
             await("Khu vườn");assertNull(find("6.1 - Native technical foundation"));assertNull(find("6.1 - Loading local content"))
