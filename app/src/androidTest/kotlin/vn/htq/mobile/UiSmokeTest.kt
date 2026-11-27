@@ -1,19 +1,19 @@
 package vn.htq.mobile
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
 import vn.htq.core.*
 import vn.htq.core.ui.*
 
@@ -32,8 +32,10 @@ class UiSmokeTest {
         val prefs=ctx.getSharedPreferences("htq_ui_preferences",0)
         val had=prefs.contains("welcome_seen");val previous=prefs.getBoolean("welcome_seen",false)
         assertTrue(prefs.edit().remove("welcome_seen").commit())
-        val a=i.startActivitySync(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as MainActivity
+        val scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        lateinit var a:MainActivity
         try {
+            scenario.onActivity{a=it}
             fun walk(v:View):List<View> = listOf(v)+if(v is ViewGroup)(0 until v.childCount).flatMap{walk(v.getChildAt(it))}else emptyList()
             fun find(label:String,clickable:Boolean=false):View? {
                 var out:View?=null
@@ -54,13 +56,16 @@ class UiSmokeTest {
                     assertTrue(v.performClick())
                 };i.waitForIdleSync()
             }
-            fun screenshot(name:String){
-                i.waitForIdleSync();SystemClock.sleep(300)
-                val b=requireNotNull(i.uiAutomation.takeScreenshot())
-                try{val folder=File(ctx.filesDir,"qa");assertTrue(folder.exists()||folder.mkdirs());File(folder,"$name.png").outputStream().use{assertTrue(b.compress(Bitmap.CompressFormat.PNG,100,it))}}finally{b.recycle()}
+            fun assertFullyVisible(label:String){
+                val v=await(label,true)
+                i.runOnMainSync{
+                    val bounds=Rect()
+                    assertTrue("Offscreen $label",v.getGlobalVisibleRect(bounds))
+                    assertTrue("Clipped $label",bounds.width()>=v.width-1 && bounds.height()>=v.height-1)
+                }
             }
-            await("Bắt đầu");screenshot("welcome");tap("Bắt đầu")
-            await("Khu vườn");screenshot("home");tap("Khu vườn");await("Túi đồ");screenshot("garden");tap("Túi đồ");await("Túi đồ");screenshot("inventory");tap("Trang chủ")
+            await("Bắt đầu");tap("Bắt đầu")
+            assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh");tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
             await("Khu vườn");assertNull(find("6.1 - Native technical foundation"));assertNull(find("6.1 - Loading local content"))
             fun openTask(id:String){
                 val task=ui.tasks.getValue(id);val l=ui.lessons.getValue(task.lesson);val topic=ui.topics.getValue(l.topic)
@@ -80,15 +85,26 @@ class UiSmokeTest {
             }
             // Actual navigation and measured preview cards, not interaction-engine grading.
             openTask("05.03-L2-Q02");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
-            screenshot("paired-page1");tap("Sau");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
-            assertTrue(await("Trước").isEnabled);assertFalse(await("Sau").isEnabled);screenshot("paired-page2");tap("Trang chủ")
-            openTask("04.02-L3-Q02");assertCards("Thẻ ",4);screenshot("memory-page1");tap("Sau");assertCards("Thẻ ",4)
-            assertFalse(await("Sau").isEnabled);screenshot("memory-page2");tap("Trang chủ")
+            i.runOnMainSync{
+                val density=a.resources.displayMetrics.density
+                val visible=walk(a.window.decorView).filter{it.contentDescription?.toString()?.startsWith("Thẻ nguồn ")==true}.any{v->val r=Rect();v.getGlobalVisibleRect(r)&&r.height()/density>=56f}
+                assertTrue("Learning content is pushed out of viewport",visible)
+            }
+            tap("Sau");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
+            assertTrue(await("Trước").isEnabled);assertFalse(await("Sau").isEnabled)
+            // A real Activity recreation must retain the shared pair page without unlocking any task gate.
+            scenario.recreate();scenario.onActivity{a=it}
+            await(ui.tasks.getValue("05.03-L2-Q02").prompt)
+            assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
+            assertTrue(await("Trước").isEnabled);assertFalse(await("Sau").isEnabled)
+            tap("Trang chủ")
+            openTask("04.02-L3-Q02");assertCards("Thẻ ",4);tap("Sau");assertCards("Thẻ ",4)
+            assertFalse(await("Sau").isEnabled);tap("Trang chủ")
             openTask("04.07-L3-Q02");await("1 / 3");await("Thứ Hai");await("Thứ Ba");await("Thứ Tư")
             for(day in listOf("Thứ Năm","Thứ Sáu","Thứ Bảy","Chủ nhật"))assertNull(find(day))
             i.runOnMainSync{val next=walk(a.window.decorView).filter{it is TextView && it.text.toString()=="Sau"};assertEquals(2,next.size);assertTrue(next.none{it.isEnabled})}
-            screenshot("calendar-page1");tap("Trang chủ")
+            tap("Trang chủ")
 
-        } finally {i.runOnMainSync{a.finish()};i.waitForIdleSync();if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
+        } finally {scenario.close();i.waitForIdleSync();if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
     }
 }

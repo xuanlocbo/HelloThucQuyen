@@ -140,22 +140,4 @@ jobs:
           "$adb" -s "$serial" shell settings put global animator_duration_scale 0
           "$adb" devices -l
           gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest
-          # Gradle removes test APKs and app data after connectedDebugAndroidTest.
-          # Install the same debug builds and repeat the UI test solely to retain evidence.
-          "$adb" -s "$serial" install -r app/build/outputs/apk/debug/app-debug.apk
-          "$adb" -s "$serial" install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-          "$adb" -s "$serial" shell am instrument -w -r -e class vn.htq.mobile.UiSmokeTest vn.htq.mobile.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/htq-ui-instrument.log"
-          grep -Eq 'OK \(1 test\)' "$RUNNER_TEMP/htq-ui-instrument.log"
-          mkdir -p "$RUNNER_TEMP/htq-ui-qa"
-          for name in welcome home garden inventory paired-page1 paired-page2 memory-page1 memory-page2 calendar-page1; do
-            "$adb" -s "$serial" exec-out run-as vn.htq.mobile cat "files/qa/$name.png" > "$RUNNER_TEMP/htq-ui-qa/$name.png"
-            test -s "$RUNNER_TEMP/htq-ui-qa/$name.png"
-            python3 -c 'import sys,struct; p=open(sys.argv[1],"rb").read(); assert p[:8]==b"\x89PNG\r\n\x1a\n" and p[12:16]==b"IHDR" and p[-8:-4]==b"IEND"' "$RUNNER_TEMP/htq-ui-qa/$name.png"
-          done
-      - name: Collect UI verification screenshots
-        uses: actions/upload-artifact@v4
-        with:
-          name: htq-6.2-ui-smoke-screens
-          path: ${{ runner.temp }}/htq-ui-qa/*.png
-          if-no-files-found: error
       # No public releases or APK artifact uploads while release_ready=false.

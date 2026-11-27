@@ -35,6 +35,8 @@ class MainActivity : Activity() {
     private var challengeB=0
     private var seed=0L
     private val groupPages=mutableMapOf<String,Int>()
+    private var pendingStack:ArrayList<String>?=null
+    private var pendingGroupPages:Bundle?=null
     private val prefs by lazy { getSharedPreferences("htq_ui_preferences",MODE_PRIVATE) }
     private val parentScreens=setOf("SCR-025","SCR-026","SCR-027","SCR-028","SCR-029","SCR-030","SCR-031","SCR-032")
     private val page get()=stack.lastOrNull() ?: Page("SCR-003")
@@ -43,10 +45,12 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState:Bundle?){
         super.onCreate(savedInstanceState);w=GardenWidgets(this)
         seed=if(prefs.contains("visual_seed"))prefs.getLong("visual_seed",0L) else Random.nextLong().also{prefs.edit().putLong("visual_seed",it).apply()}
-        load(savedInstanceState?.getStringArrayList("ui_stack"))
+        pendingStack=savedInstanceState?.getStringArrayList("ui_stack")
+        pendingGroupPages=savedInstanceState?.getBundle("ui_group_pages")
+        load()
     }
     private fun mount(v:View){setContentView(v);v.requestApplyInsets()}
-    private fun load(restored:ArrayList<String>?=null){
+    private fun load(){
         if(loading||closed)return
         loading=true
         mount(w.shell(appTitle,"art/img_bg_0026.webp",null,null){body->
@@ -66,11 +70,20 @@ class MainActivity : Activity() {
                     val opened=runCatching{Foundation(catalog,ui,LocalProgress(applicationContext,catalog),AndroidAudio(this))}
                     opened.fold(onSuccess={base->
                         f=base;stack.clear();stack.add(Page("SCR-003"))
+                        val restored=pendingStack
                         val decoded=restored?.mapNotNull(::decodePage).orEmpty()
-                        if(decoded.isNotEmpty() && decoded.first().screen=="SCR-003" && decoded.none{it.screen in parentScreens} && decoded.all{validPage(base.ui,it)}){
+                        groupPages.clear()
+                        if(decoded.isNotEmpty() && decoded.size==restored?.size && decoded.first().screen=="SCR-003" && decoded.none{it.screen in parentScreens} && decoded.all{validPage(base.ui,it)}){
                             stack.clear();stack.addAll(decoded)
+                            pendingGroupPages?.let{saved->
+                                groupStateLimits(ui,stack).forEach{(key,max)->
+                                    val n=saved.getInt(key,0)
+                                    if(n in 1..max)groupPages[key]=n
+                                }
+                            }
                         }else if(!prefs.getBoolean("welcome_seen",false)) stack.add(Page("SCR-002"))
                         else runCatching{base.progress.loadSession()?.s("task_id")}.getOrNull()?.takeIf{it in ui.tasks}?.let{stack.add(Page("SCR-020",it))}
+                        pendingStack=null;pendingGroupPages=null
                         render()
                     },onFailure={showError(null)})
                 },onFailure={showError(null)})
@@ -91,10 +104,36 @@ class MainActivity : Activity() {
     }
     private fun decodePage(raw:String):Page?=runCatching{val x=raw.split('|');require(x.size==4);val p=Page(x[0],x[1],x[2].toInt(),x[3]=="1");require(p.index in 0..660);p}.getOrNull()
     private fun encodePage(p:Page)="${p.screen}|${p.ref}|${p.index}|${if(p.extra)1 else 0}"
+    private fun groupKey(t:UiTask,index:Int,g:UiGroup)="${t.id}:${g.pager ?: index.toString()}"
+    // Persist only presentation state for tasks on the restored child stack. No answers or parent authorization.
+    private fun groupStateLimits(ui:UiContent,pages:List<Page>):Map<String,Int> {
+        val limits=linkedMapOf<String,Int>()
+        pages.mapNotNull{ui.tasks[it.ref]}.distinctBy{it.id}.forEach{t->
+            t.groups.forEachIndexed{index,g->
+                val key=groupKey(t,index,g)
+                val max=if(g.advanceRequiresCommit)0 else if(g.pageSizes.isNotEmpty())g.pageSizes.lastIndex else g.items.lastIndex
+                limits[key]=minOf(limits[key]?:max,max)
+                if(g.role=="hotspot")limits["zoom:$key"]=1
+            }
+        }
+        return limits
+    }
     override fun onSaveInstanceState(outState:Bundle){
         super.onSaveInstanceState(outState)
+        val base=f
+        if(base==null){
+            pendingStack?.let{outState.putStringArrayList("ui_stack",it)}
+            pendingGroupPages?.let{outState.putBundle("ui_group_pages",it)}
+            return
+        }
         val safe=if(stack.any{it.screen in parentScreens})listOf(Page("SCR-003")) else stack
         outState.putStringArrayList("ui_stack",ArrayList(safe.map(::encodePage)))
+        val state=Bundle()
+        groupStateLimits(base.ui,safe).forEach{(key,max)->
+            val n=groupPages[key]?:0
+            if(n in 1..max)state.putInt(key,n)
+        }
+        outState.putBundle("ui_group_pages",state)
     }
     private fun stopAudio(){f?.audio?.stop()}
     private fun active(action:()->Unit):()->Unit={if(resumed&&!closed)action()}
@@ -137,9 +176,10 @@ class MainActivity : Activity() {
             if(f!=null)w.add(body,w.button("Về nhà",action=active(::home)))
         })
     }
-    private fun frame(ui:UiContent,p:Page,heading:String,body:(LinearLayout)->Unit,background:String?=null,top:Boolean=true){
+    private fun frame(ui:UiContent,p:Page,heading:String,body:(LinearLayout)->Unit,background:String?=null,top:Boolean=true,footer:((LinearLayout)->Unit)?=null){
         val isHome=p.screen=="SCR-003";val isWelcome=p.screen=="SCR-002"
-        mount(w.shell(heading,background,if(!isHome&&!isWelcome&&top)active(::back)else null,if(!isHome&&!isWelcome&&top)active(::home)else null,body))
+        val backdrop=isHome || isWelcome || ui.tasks[p.ref]?.screen==p.screen
+        mount(w.shell(heading,background,if(!isHome&&!isWelcome&&top)active(::back)else null,if(!isHome&&!isWelcome&&top)active(::home)else null,backdrop=backdrop,footer=footer,body=body))
     }
     private fun action(body:LinearLayout,label:String,fill:String="green",adult:Boolean=false,enabled:Boolean=true,fn:(()->Unit)?=null){w.add(body,w.button(label,fill,adult,enabled,fn?.let{active(it)}))}
     private fun heading(body:LinearLayout,text:String){w.add(body,w.text(text,24,true),8)}
@@ -199,11 +239,16 @@ class MainActivity : Activity() {
     }
     private fun homeScreen(base:Foundation,p:Page){val ui=base.ui
         frame(ui,p,appTitle,{b->
-            w.grid(b,cardViews(ui.areas.map{it.card}){c->if(c.id=="AREA-04")push(Page("SCR-012"))else push(Page("SCR-004",c.id))},2,112)
+            val perPage=when{w.viewport.wide->2;w.viewport.fontScale>=1.25f && w.viewport.width<400->4;else->6}
+            paginated(ui.areas.map{it.card},perPage,p,b){cards->
+                val fills=listOf("green","blue","peach","lilac","yellow","white")
+                w.grid(b,cards.map{c->w.card(c.title,c.image,fills[ui.areas.indexOfFirst{it.card.id==c.id}],if(w.viewport.wide)76 else if(w.viewport.width<360)74 else 90,active{if(c.id=="AREA-04")push(Page("SCR-012"))else push(Page("SCR-004",c.id))})},2,112)
+            }
             val resume=runCatching{base.progress.loadSession()?.s("task_id")}.getOrNull()?.takeIf{it in ui.tasks}
             if(resume!=null)action(b,"Chơi tiếp","teal",fn={push(Page("SCR-020",resume))})
+        },fixedBackground(ui,p.screen),footer={b->
             w.pair(b,w.button("Khu vườn","green",action=active{push(Page("SCR-023"))}),w.button("Phụ huynh","white",adult=true,action=active{challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50);push(Page("SCR-025"))}))
-        },fixedBackground(ui,p.screen))
+        })
     }
     private fun areaScreen(ui:UiContent,p:Page){val a=ui.areas.single{it.card.id==p.ref};val pages=a.pages;val i=p.index.coerceIn(0,pages.lastIndex)
         frame(ui,p,a.card.title,{b->
@@ -376,7 +421,7 @@ class MainActivity : Activity() {
             items.forEachIndexed{i,e->if(e is UiElement.Image){r.addView(w.image(e.path),LinearLayout.LayoutParams(w.dp(cell),w.dp(cell)).apply{if(i>0)marginStart=w.dp(if(g.role=="compare_wide")minOf(12,(w.viewport.available-cell*items.size)/(items.size.coerceAtLeast(2)-1))else 2)})}}
             w.add(b,r);return
         }
-        val key="${t.id}:${g.pager ?: index.toString()}"
+        val key=groupKey(t,index,g)
         val partitions=g.pageIndices(w.viewport)
         val chunks=partitions.mapIndexed{n,indices->
             val ordered=if(g.shuffle)indices.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong() xor (n.toLong() shl 32)))else indices

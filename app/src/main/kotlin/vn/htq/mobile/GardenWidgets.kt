@@ -252,11 +252,11 @@ internal class GardenWidgets(private val activity: Activity) {
     }
     fun pair(parent:LinearLayout,first:View,second:View){
         // Large-font compact profile uses vertical buttons, never squeezed targets.
-        if(viewport.available<300 || config.fontScale>=1.25f && viewport.available<420){add(parent,first);add(parent,second)}else{
+        if(viewport.available<268 || config.fontScale>=1.25f && viewport.available<420){add(parent,first);add(parent,second)}else{
             val r=row();r.addView(first,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f));r.addView(second,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f).apply{marginStart=dp(12)});add(parent,r)
         }
     }
-    fun shell(title:String,backgroundArt:String?,back:(()->Unit)?,home:(()->Unit)?,body:(LinearLayout)->Unit):View{
+    fun shell(title:String,backgroundArt:String?,back:(()->Unit)?,home:(()->Unit)?,backdrop:Boolean=false,footer:((LinearLayout)->Unit)?=null,body:(LinearLayout)->Unit):View{
         val root=column().apply{setBackgroundColor(color("cream"))}
         root.setOnApplyWindowInsetsListener{view,insets->
             @Suppress("DEPRECATION")
@@ -269,8 +269,15 @@ internal class GardenWidgets(private val activity: Activity) {
         root.addView(header,LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT))
         val scroll=ScrollView(activity).apply{isFillViewport=true}
         val content=column().apply{setPadding(dp(viewport.margin),dp(4),dp(viewport.margin),dp(20))}
-        if(backgroundArt!=null){val bg=image(backgroundArt);bg.scaleType=ImageView.ScaleType.FIT_CENTER;add(content,bg,0,if(viewport.wide)90 else 120)}
-        body(content);scroll.addView(content,ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));root.addView(scroll,LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1f));return root
+        if(backgroundArt!=null && !backdrop){val bg=image(backgroundArt);bg.scaleType=ImageView.ScaleType.FIT_CENTER;add(content,bg,0,if(viewport.wide)90 else 120)}
+        body(content);scroll.addView(content,ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT))
+        val panel=if(backdrop && backgroundArt!=null)FrameLayout(activity).apply{
+            addView(image(backgroundArt).apply{scaleType=ImageView.ScaleType.FIT_CENTER;alpha=0.18f;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO},FrameLayout.LayoutParams(-1,-1))
+            addView(scroll,FrameLayout.LayoutParams(-1,-1))
+        }else scroll
+        root.addView(panel,LinearLayout.LayoutParams(-1,0,1f))
+        footer?.let{draw->val tray=column().apply{setPadding(dp(viewport.margin),0,dp(viewport.margin),dp(8));setBackgroundColor(color("cream"))};draw(tray);root.addView(tray,LinearLayout.LayoutParams(-1,-2))}
+        return root
     }
     fun clock(hour:Int?):View=object:View(activity){
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
