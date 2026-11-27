@@ -34,6 +34,7 @@ class MainActivity : Activity() {
     private var challengeB=0
     private var seed=0L
     private var interaction:TaskInteraction?=null
+    private var clearConfirmationFor:String?=null
     private var preludeOpenedFor:String?=null
     private var listeningFailed=false
     private var gardenSelection:String?=null
@@ -182,7 +183,7 @@ class MainActivity : Activity() {
         base.audioPolicy.request(task.id,event,true,attempted=state?.attempted==true,verdict=state?.verdict)?.let(base.audio::request)
     }
     private fun leaveListening(){f?.listening?.leave();preludeOpenedFor=null;listeningFailed=false}
-    private fun depart(){if(f?.listening?.taskId!=null)leaveListening()else stopAudio();f?.backend?.settings=settings;interaction?.discardTransient()}
+    private fun depart(){clearConfirmationFor=null;if(f?.listening?.taskId!=null)leaveListening()else stopAudio();f?.backend?.settings=settings;interaction?.discardTransient()}
     private fun push(p:Page){depart();stack.add(p);render()}
     private fun replace(p:Page){depart();if(stack.isNotEmpty())stack[stack.lastIndex]=p else stack.add(p);render()}
     private fun back(){depart();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)f?.parent?.close();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
@@ -665,15 +666,14 @@ class MainActivity : Activity() {
                 if(!state.finished){
                     if(state.isMemory)action(b,"Úp thẻ","white",enabled=state.faceUpIds.size>state.matchedPairs.size*2,fn={changeResponse(state,state::closeFlipped)})
                     else if(t.screen!="SCR-069")w.pair(b,w.button("Hoàn tác","white",action=active{changeResponse(state,state::undo)}),w.button("Làm lại","white",action=active{
-                        if(state.creative!=null){
-                            val controls=w.column().apply{setPadding(w.dp(16),w.dp(12),w.dp(16),w.dp(16))}
-                            val dialog=android.app.AlertDialog.Builder(this).setTitle("Xóa phần bé đã làm?").setView(controls).create()
-                            w.add(controls,w.button("Hủy","white",action={dialog.dismiss()}))
-                            w.add(controls,w.button("Xóa","peach",action={dialog.dismiss();changeResponse(state,state::clear)}))
-                            dialog.show()
-                        }
+                        if(state.creative!=null){clearConfirmationFor=state.task.id;refreshTask()}
                         else changeResponse(state,state::clear)
                     }))
+                    if(clearConfirmationFor==state.task.id&&state.creative!=null){
+                        w.add(b,w.text("Xóa phần bé đã làm?",22,true))
+                        w.pair(b,w.button("Hủy","white",action=active{clearConfirmationFor=null;refreshTask()}),
+                            w.button("Xóa","peach",action=active{clearConfirmationFor=null;changeResponse(state,state::clear)}))
+                    }
                     if(state.type!="participation")action(b,"Gợi ý","white",enabled=state.attempted,fn={taskVoice(t,AudioEvent.HINT)})
                     action(b,"Xong","teal",enabled=state.response()!=null,fn={submitTask(base,state)})
                 }else action(b,"Tiếp tục","teal",fn={nextWithoutReward(t)})
