@@ -1,6 +1,6 @@
 # Hello Thuc Quyen Mobile
 
-Independent Android Mobile Native Kotlin project. Phase 6.3 native interaction integration has passed the engineering verification gate; the Phase 6.2 presentation and locked runtime are preserved. Development repository is public; this is not a released application.
+Independent Android Mobile Native Kotlin project. Phase 6.4 garden and deferred reward integration has passed the engineering verification gate; the Phase 6.2 presentation, Phase 6.3 interactions and locked runtime are preserved. Development repository is public; this is not a released application.
 
 ## Locked content
 
@@ -24,10 +24,19 @@ The approved runtime input is 5.3-official-1 (4664 files, 3897 resource IDs, 17 
 - Debug build, lint and both Android 15 instrumentation tests passed. The suite renders all 660 tasks in 36 task templates and exercises representative real interaction, persistence, rewards/garden, adult settings, playback-completion gating, static/animated demonstrations, restoration without autoplay, and adaptive layout.
 - This is an engineering acceptance of the tested integration, not a full visual, phonetic, content-specialist or physical-device audit. No test was removed to obtain the passing result. Preserve the tested baseline; use targeted changes and tests for new work.
 
+## Verified 6.4 baseline
+
+- Tested application commit: befe600c8e56f82b3ef011e1132bfde5f6da0abc.
+- CI: https://github.com/xuanlocbo/HelloThucQuyen/actions/runs/45953398370 (SUCCESS, 2026-11-27, first run on verify-6.4).
+- Deferred earned rewards remain accessible from the garden and inventory, independent of the lesson. The existing completion/claim transaction prevents duplicate rewards on replay.
+- A claimed item has its own task-keyed identity, including items sharing the same artwork. Place, relocate, put away and undo use the existing persisted coordinates and inventory; no schema migration or new media was introduced.
+- Extended the existing two Android 15 instrumentation tests to exercise deferred claims, distinct identical items, counts, relocation, undo, recreation and replay. Both tests passed, together with the full existing core contract, 660-task rendering sweep, debug build and lint.
+- Acceptance covers the implemented and tested 6.4 garden/reward scope; it does not replace release, specialist or physical-device validation.
+
 Subsequent phases must follow the approved project plan. Do not fabricate completion, grading, playback completion or rewards.
 
 ## Toolchain and release gate
 
-JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2 and verify-6.3 are covered by CI. No child records, credentials or signing keys belong in this public repository.
+JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2, verify-6.3 and verify-6.4 are covered by CI. No child records, credentials or signing keys belong in this public repository.
 
 release_ready=false. No release APK publication or public APK artifact upload. Source redistribution rights, specialist content review and final device validation remain release gates. Public source visibility does not establish redistribution permission.
