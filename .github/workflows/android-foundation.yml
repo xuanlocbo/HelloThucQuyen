@@ -59,6 +59,22 @@ jobs:
           fi
           "$emu" -accel-check
           "$sdk/platform-tools/adb" version
+      - name: Create and verify AVD in one explicit shared directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_USER_HOME="$RUNNER_TEMP/htq-android"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          printf '%s\n' "ANDROID_USER_HOME=$ANDROID_USER_HOME" "ANDROID_EMULATOR_HOME=$ANDROID_EMULATOR_HOME" "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          emu="$ANDROID_SDK_ROOT/emulator/emulator"
+          avdmanager create avd --force -n htq_ci -k 'system-images;android-35;google_apis;x86_64' -p "$ANDROID_AVD_HOME/htq_ci.avd" <<< 'no'
+          test -s "$ANDROID_AVD_HOME/htq_ci.ini"
+          test -s "$ANDROID_AVD_HOME/htq_ci.avd/config.ini"
+          grep -Fx "path=$ANDROID_AVD_HOME/htq_ci.avd" "$ANDROID_AVD_HOME/htq_ci.ini"
+          avdmanager list avd
+          "$emu" -list-avds | grep -Fx htq_ci
       - name: Compile and verify native data contract
         run: gradle --no-daemon :core:contractCheck :app:assembleDebug :app:lintDebug :app:assembleDebugAndroidTest
       - name: Run Android storage and bundled-resource test
@@ -69,14 +85,10 @@ jobs:
           emu="$sdk/emulator/emulator"
           adb="$sdk/platform-tools/adb"
           export PATH="$sdk/emulator:$sdk/platform-tools:$PATH"
-          test -x "$emu"
-          test -x "$adb"
-          sudo chmod a+rw /dev/kvm
-          "$emu" -version
-          "$emu" -accel-check
-          df -h "$HOME" "$RUNNER_TEMP"
-          echo no | avdmanager create avd --force -n htq_ci -k 'system-images;android-35;google_apis;x86_64'
-          avdmanager list avd
+          test -s "${ANDROID_AVD_HOME:?AVD directory is missing}/htq_ci.ini"
+          test -s "$ANDROID_AVD_HOME/htq_ci.avd/config.ini"
+          "$emu" -list-avds | grep -Fx htq_ci
+          df -h "$ANDROID_AVD_HOME" "$RUNNER_TEMP"
           "$adb" start-server
           log="$RUNNER_TEMP/htq-emulator.log"
           serial=emulator-5554
@@ -90,11 +102,14 @@ jobs:
               echo '::group::Emulator diagnostics'
               "$adb" devices -l
               tail -n 250 "$log"
-              timeout 15 "$adb" -s "$serial" logcat -d -t 300
+              if [[ $(timeout 5 "$adb" -s "$serial" get-state 2>/dev/null) == device ]]; then
+                timeout 15 "$adb" -s "$serial" logcat -d -t 300
+              fi
               echo '::endgroup::'
             fi
             timeout 15 "$adb" -s "$serial" emu kill >/dev/null 2>&1
             kill "$emu_pid" 2>/dev/null
+            wait "$emu_pid" 2>/dev/null
             exit "$rc"
           }
           trap cleanup EXIT
@@ -105,7 +120,10 @@ jobs:
               exit 1
             fi
             boot=$(timeout 10 "$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
-            if [[ "$boot" == 1 ]] && timeout 10 "$adb" -s "$serial" shell pm path android >/dev/null 2>&1; then break; fi
+            if [[ "$boot" == 1 ]]; then
+              package=$(timeout 10 "$adb" -s "$serial" shell pm path android 2>/dev/null || true)
+              if [[ "$package" == package:* ]]; then break; fi
+            fi
             if (( SECONDS >= deadline )); then
               echo '::error::Android emulator did not complete boot within 600 seconds'
               exit 1
@@ -117,5 +135,5 @@ jobs:
           "$adb" -s "$serial" shell settings put global transition_animation_scale 0
           "$adb" -s "$serial" shell settings put global animator_duration_scale 0
           "$adb" devices -l
-          gradle --no-daemon :app:connectedDebugAndroidTest
+          gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest
       # No public releases or APK artifact uploads while release_ready=false.
