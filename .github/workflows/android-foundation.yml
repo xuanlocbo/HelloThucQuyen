@@ -82,7 +82,7 @@ jobs:
       - name: Compile and verify native data contract
         run: gradle --no-daemon :core:contractCheck :app:assembleDebug :app:lintDebug :app:assembleDebugAndroidTest
       - name: Inspect built APK and source-rights gate
-        if: github.ref_name == 'verify-7'
+        if: github.ref_name == 'verify-7' || (github.ref_name == 'main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[device-qa]'))
         shell: bash
         run: |
           set -euo pipefail
@@ -213,4 +213,36 @@ jobs:
           path: ${{ runner.temp }}/htq-final-qa/
           if-no-files-found: error
           retention-days: 14
-      # No public releases or APK artifact uploads while release_ready=false.
+      - name: Encrypt complete debug APK for owner device QA
+        if: github.ref_name == 'main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[device-qa]') && success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="app/build/outputs/apk/debug/app-debug.apk"
+          qa="$RUNNER_TEMP/htq-final-qa"
+          out="$RUNNER_TEMP/htq-device-qa-encrypted"
+          mkdir -p "$out"
+          python3 - "$apk" "$qa/package.json" <<'PY'
+          import hashlib, json, pathlib, sys
+          apk, report = map(pathlib.Path, sys.argv[1:])
+          p = json.loads(report.read_text())
+          assert p["release_ready"] is False
+          assert p["apk_publication_enabled"] is False
+          assert apk.stat().st_size == p["apk_bytes"]
+          assert hashlib.sha256(apk.read_bytes()).hexdigest() == p["apk_sha256"]
+          PY
+          openssl cms -encrypt -binary -aes-256-gcm -outform DER -in "$apk" -out "$out/HelloThucQuyen-device-test.apk.cms" qa/device-test-recipient.pem
+          test -s "$out/HelloThucQuyen-device-test.apk.cms"
+          cp "$qa/package.json" "$out/package.json"
+          (cd "$out" && sha256sum HelloThucQuyen-device-test.apk.cms > encrypted-sha256.txt)
+          echo "HTQ_PRIVATE_DEVICE_QA_ENCRYPTED_PASS"
+      - name: Save encrypted device QA transfer
+        if: github.ref_name == 'main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[device-qa]') && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloThucQuyen-device-QA-encrypted
+          path: ${{ runner.temp }}/htq-device-qa-encrypted/
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      # No public releases or plaintext APK artifact uploads while release_ready=false.

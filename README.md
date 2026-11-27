@@ -1,6 +1,6 @@
 # Hello Thuc Quyen Mobile
 
-Independent Android Mobile Native Kotlin project. Phase 6.5 local parent features and non-destructive progress migration have passed the engineering verification gate; the Phase 6.2 presentation, Phase 6.3 interactions, Phase 6.4 garden/rewards and locked runtime are preserved. Development repository is public; this is not a released application.
+Independent Android Mobile Native Kotlin project. Phase 7 emulator integration and representative visual QA have passed the engineering verification gate; the verified Phase 6 baseline and locked runtime are preserved. Development repository is public; this is not a released application.
 
 ## Locked content
 
@@ -43,10 +43,24 @@ The approved runtime input is 5.3-official-1 (4664 files, 3897 resource IDs, 17 
 - Both Android 15 instrumentation tests, the full existing core contract, debug build and lint passed. All locked resource files remain unchanged. No additional media or redundant test run was needed on the verification branch.
 - This engineering acceptance is limited to the tested scope, not a physical-device, specialist-content or release audit.
 
-Subsequent phases must follow the approved project plan. Do not fabricate completion, grading, playback completion or rewards.
+## Verified Phase 7 engineering baseline
+
+- Tested application commit: 5baba0dd230a1ca3d0a64b585cd856d6ad7ee9e4.
+- Final integration CI: https://github.com/xuanlocbo/HelloThucQuyen/actions/runs/45957039961 (SUCCESS); compact-presentation correction and regression CI: https://github.com/xuanlocbo/HelloThucQuyen/actions/runs/45958034701 (SUCCESS, 2026-11-27).
+- Verified corrected debug APK: 93284055 bytes; SHA-256 6f90cab737ee10c4bb149202af263950db325e66e03b4f6e283e4d957ce1e129. All 4664 locked runtime files matched inside the APK byte-for-byte; 660 task controllers and 660 native render checks, 39 listening gates and both Android 15 instrumentation tests passed. Offline operation, progress/garden restoration, parent settings and motion gates passed.
+- Compared all 13 before/after representative screenshots from the two emulator runs. The compact home shows six areas, the primary task action remains visible, reward/garden imagery is clearer and the letter/number/English/story listening controls are easier to reach. Very small screens and long content may still require scrolling; the comparison is not an exhaustive pixel-level or real-device audit.
+- Evidence artifact: https://github.com/xuanlocbo/HelloThucQuyen/actions/runs/45958034701/artifacts/15179483869 (screenshots, package.json and native QA log; expires per GitHub retention). The measured welcome startup was 2047 ms and PSS 197225 KiB on that emulator run, not a device performance guarantee.
+- Outstanding content provenance: AUD-ANM-0007, AUD-ANM-0011, AUD-INS-0003, AUD-INS-0007, AUD-INS-0008, AUD-NAT-0008, AUD-OBJ-0018, AUD-TRN-0006; the independent excerpt listening check for AUD-OBJ-0010 was waived, not certified; AUD-VIG-0715 through AUD-VIG-0718 require existing voice-model terms review. The remaining 2307 audio records retain prior source evidence, not a fresh legal clearance. Preserve all approved files until genuine evidence or an authorized replacement is available.
+- Engineering acceptance is not public-release acceptance: physical-device, specialist and source-rights gates remain open. The APK is still a development build (0.6.1-dev), with the default Android launcher icon and debug signature.
+
+## Owner device QA handoff
+
+For the one explicitly marked `[device-qa]` main push, the existing CI job runs package integrity verification and the existing Android regression suite before encrypting the complete debug APK to the QA recipient's public certificate. It publishes only the authenticated encrypted CMS file and its package report, never the plaintext APK or private key. The recipient's private key stays outside GitHub. This is a private device-test transfer, not release permission; `release_ready=false` remains unchanged. Debug signing certificates may vary between CI machines; a fresh install may be needed on the test device.
+
+Do not fabricate completion, grading, playback completion or rewards.
 
 ## Toolchain and release gate
 
-JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2, verify-6.3, verify-6.4 and verify-6.5 are covered by CI. No child records, credentials or signing keys belong in this public repository.
+JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2, verify-6.3, verify-6.4, verify-6.5 and verify-7 are covered by CI. No child records, credentials or signing keys belong in this public repository.
 
 release_ready=false. No release APK publication or public APK artifact upload. Source redistribution rights, specialist content review and final device validation remain release gates. Public source visibility does not establish redistribution permission.
