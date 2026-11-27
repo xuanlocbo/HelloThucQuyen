@@ -16,6 +16,7 @@ class MainActivity : Activity() {
     private class Foundation(val catalog:Catalog,val ui:UiContent,val progress:LocalProgress,val backend:AndroidAudio) {
         val audio=AudioArbiter(backend)
         val audioPolicy=TaskAudioPolicy(catalog)
+        val taskMotion=TaskMotion(catalog)
         val listening=ListeningGate(catalog,audio)
         val navigator=Navigator(catalog,audio::stop)
         val sessions=SessionPolicy(catalog)
@@ -34,6 +35,8 @@ class MainActivity : Activity() {
     private var challengeB=0
     private var seed=0L
     private var interaction:TaskInteraction?=null
+    private var motionPreview:MotionPreview?=null
+    private fun stopMotion(){motionPreview?.stop();motionPreview=null}
     private var clearConfirmationFor:String?=null
     private var preludeOpenedFor:String?=null
     private var listeningFailed=false
@@ -179,11 +182,12 @@ class MainActivity : Activity() {
         base.audioPolicy.libraryRequest(path,true)?.let(base.audio::request)
     }
     private fun taskVoice(task:UiTask,event:AudioEvent){
+        motionPreview?.stop()
         val base=f?:return;val state=interaction?.takeIf{it.task.id==task.id}
         base.audioPolicy.request(task.id,event,true,attempted=state?.attempted==true,verdict=state?.verdict)?.let(base.audio::request)
     }
     private fun leaveListening(){f?.listening?.leave();preludeOpenedFor=null;listeningFailed=false}
-    private fun depart(){clearConfirmationFor=null;if(f?.listening?.taskId!=null)leaveListening()else stopAudio();f?.backend?.settings=settings;interaction?.discardTransient()}
+    private fun depart(){stopMotion();clearConfirmationFor=null;if(f?.listening?.taskId!=null)leaveListening()else stopAudio();f?.backend?.settings=settings;interaction?.discardTransient()}
     private fun push(p:Page){depart();stack.add(p);render()}
     private fun replace(p:Page){depart();if(stack.isNotEmpty())stack[stack.lastIndex]=p else stack.add(p);render()}
     private fun back(){depart();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)f?.parent?.close();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
@@ -285,6 +289,7 @@ class MainActivity : Activity() {
     }
 
     private fun render(){
+        stopMotion()
         val base=f?:return;val ui=base.ui;val p=page
         try{
             if(p.screen in parentScreens && p.screen!="SCR-025" && !base.parent.allowed()){home();return}
@@ -466,7 +471,7 @@ class MainActivity : Activity() {
                     toggle("Chữ lớn",draft.largeText){draft=draft.copy(largeText=it)}
                     toggle("Giảm chuyển động",draft.reducedMotion){draft=draft.copy(reducedMotion=it)}
                     toggle("Nhạc nền",draft.music){draft=draft.copy(music=it)}
-                    w.add(b,w.text("Giảm chuyển động tắt hiệu ứng chạm của nút. Nội dung và đáp án không thay đổi.",18,center=false))
+                    w.add(b,w.text("Giảm chuyển động tắt hiệu ứng chạm và dùng tranh tĩnh hoặc từng bước thay cho minh họa động đã hỗ trợ. Nội dung và đáp án không thay đổi.",18,center=false))
                 }
             }
             action(b,"Lưu cài đặt","teal",adult=true,fn={
@@ -658,6 +663,14 @@ class MainActivity : Activity() {
                 }
             })
             if(state.supported){
+                if(base.taskMotion.available(state)){
+                    val preview=MotionPreview(w,settings.reducedMotion,
+                        allowed={resumed&&!closed&&page==p&&interaction===state&&
+                            (!source.prelude||base.listening.receipt(source.id)!=null)&&base.taskMotion.available(state)},
+                        request={reduced->base.taskMotion.request(state,true,reduced)},
+                        beforePlayback={stopAudio()})
+                    motionPreview=preview;preview.attach(b)
+                }
                 when(val v=state.verdict){
                     is Verdict.Completed -> w.add(b,w.text(if(v.ticket.kind==CompletionKind.OPEN)"Cảm ơn bé đã tham gia!" else "Bé làm tốt lắm!",24,true))
                     Verdict.Retry -> w.add(b,w.text("Bé thử thêm một lần nhé!",22,true))
@@ -783,6 +796,6 @@ class MainActivity : Activity() {
     override fun onResume(){super.onResume();resumed=true;foregroundBegan=SystemClock.elapsedRealtime();if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
     override fun onPause(){elapsedStudyMs=studyTimeMs();foregroundBegan=null;resumed=false;depart();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
     override fun onStop(){stopAudio();super.onStop()}
-    override fun onDestroy(){closed=true;stopAudio();f?.progress?.close();f=null;if(::w.isInitialized)w.clear();super.onDestroy()}
+    override fun onDestroy(){closed=true;stopMotion();stopAudio();f?.progress?.close();f=null;if(::w.isInitialized)w.clear();super.onDestroy()}
     @Suppress("DEPRECATION") override fun onBackPressed(){if(stack.size>1)back()else super.onBackPressed()}
 }

@@ -13,9 +13,11 @@ internal object TaskInteractionChecks {
         val hotspot=c.open("engine/hotspots.json").bufferedReader().use{Json.parse(it.readText()).arr().map{v->v.obj()}}
         val backend=ControlledAudio();val arbiter=AudioArbiter(backend);val gate=ListeningGate(c,arbiter)
         var supported=0;var restored=0;var wrong=0;val counts=linkedMapOf<String,Int>()
+        val taskMotion=TaskMotion(c);var motionCases=0
         for(t in ui.tasks.values){
             val s=TaskInteraction(c,t);if(!s.supported)continue
             counts[s.type]=(counts[s.type]?:0)+1
+            check(taskMotion.request(s,true,false)==MotionDecision.Blocked)
             val g=if(t.prelude)t.afterPrelude else t.groups
             val roles=g.flatMap{gr->gr.objectIds.map{it to gr.role}}.toMap()
             fun tap(id:String){check(s.tap(roles.getValue(id),id)){"Input rejected $id in ${t.id}"}}
@@ -77,14 +79,30 @@ internal object TaskInteractionChecks {
                 else->error("Unsupported controller family was marked ready")
             }
             check(s.response()!=null){"No committed response for ${t.id}"}
+            if(s.advanced?.isSimulation==true){
+                check(taskMotion.available(s));check(taskMotion.request(s,false,false)==MotionDecision.Blocked)
+                val restoredState=TaskInteraction(c,t);check(restoredState.restoreFields(Json.parse(Json.encode(s.saveFields())).obj()))
+                check(taskMotion.request(restoredState,false,false)==MotionDecision.Blocked)
+            }
             if(reference!=Response.ParticipationDone){
                 val copy=TaskInteraction(c,t);check(copy.restoreFields(Json.parse(Json.encode(s.saveFields())).obj()));check(copy.response()==s.response());restored++
                 if(s.advanced==null)check(!copy.restoreFields(mapOf("selected_object_ids" to listOf("invalid"),"sequence_ids" to listOf("invalid"))))
             }
             var receipt:ListeningReceipt?=null
             if(t.prelude){check(s.submit(null)==Verdict.NotSubmitted);gate.enter(t.id);check(gate.start(t.id){check(it)});while(arbiter.active)backend.finish();receipt=requireNotNull(gate.receipt(t.id))}
-            val v=s.submit(receipt);check(v is Verdict.Completed){"Controller failed ${t.id} $v"};check(s.submit(receipt)==Verdict.NotSubmitted);check(!s.tap("choices",roles.keys.firstOrNull()?:"invalid"));gate.leave();supported++
+            val v=s.submit(receipt);check(v is Verdict.Completed){"Controller failed ${t.id} $v"};check(s.submit(receipt)==Verdict.NotSubmitted);check(!s.tap("choices",roles.keys.firstOrNull()?:"invalid"))
+            if(taskMotion.available(s)){
+                val normal=taskMotion.request(s,true,false) as MotionDecision.Media
+                val reduced=taskMotion.request(s,true,true) as MotionDecision.Media
+                check(normal.path.endsWith(".webp")&&normal.path in c.paths)
+                check(reduced.path.endsWith(".png")&&reduced.path in c.paths&&reduced.reducedSteps.all{it in c.paths})
+                if(t.id=="16.03-L1-Q01")check(normal.path.endsWith("mot_091_seed_story.webp"))
+                if(t.id=="06.06-L1-Q02")check(normal.path.endsWith("mot_098_butterfly.webp"))
+                check(taskMotion.request(s,false,false)==MotionDecision.Blocked);motionCases++
+            }
+            gate.leave();supported++
         }
+        check(motionCases==12);println("HTQ_TASK_MOTION_PASS cases=$motionCases")
         check(supported==660);println("HTQ_TASK_CONTROLLERS_PASS tasks=$supported restored=$restored wrong=$wrong counts=$counts")
         val fake=object:AudioBackend{
             var now=0L;var cb:((Boolean)->Unit)?=null;val waits=mutableListOf<Long>();val played=mutableListOf<String>()

@@ -266,6 +266,11 @@ class UiSmokeTest {
             tap("Hủy");await("Bảng vẽ, chạm hoặc kéo ngón tay để tô");tap("Trang chủ")
             renderApprovedTask(ui.tasks.getValue("04.04-L3-Q02"));tapId("04.04-L3-Q02:o01");tapId("04.04-L3-Q02:o02")
             assertTrue(await("Nghe nhịp").isEnabled);tap("Nghe nhịp");tap("Dừng");tap("Trang chủ")
+            // Source simulation must not expose its illustrative result until explicit View.
+            renderApprovedTask(ui.tasks.getValue("08.03-L3-Q01"))
+            assertNull(find("Xem minh họa"))
+            tap("Xem kết quả");tap("Xem minh họa");await("Dừng minh họa")
+            tap("Dừng minh họa");assertNull(find("Minh họa chuyển động"));tap("Trang chủ")
             val pairTask=ui.tasks.getValue("05.03-L2-Q02")
             renderApprovedTask(pairTask)
             fun waitProfile(condition:(Configuration)->Boolean){
