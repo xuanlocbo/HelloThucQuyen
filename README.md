@@ -59,6 +59,10 @@ For the one explicitly marked `[device-qa]` main push, the existing CI job runs 
 
 Do not fabricate completion, grading, playback completion or rewards.
 
+## Approved home-only update
+
+The approved home illustration (941 x 1672) is stored separately as `assets/htq_home/approved.webp` (429564 bytes, SHA-256 `0103f6e200f910f89c230997291d8f92ae5769a2195bb5b14d2bfd3298ba257a`). It uses the user's final approved artwork, with only fake OS icons removed and WebP compression. Native image buttons retain the eight original routes. Saved-session and optional music controls remain available. Landscape and large-text modes reflow the same artwork for accessibility. No lesson, content, database, audio, garden or parent module is changed. The `[home-qa] [device-qa]` push performs offline regression, actual home-coordinate touches, targeted portrait/landscape/tablet screenshots, APK verification and the existing encrypted owner test handoff in one job. Results must be checked before acceptance.
+
 ## Toolchain and release gate
 
 JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2, verify-6.3, verify-6.4, verify-6.5 and verify-7 are covered by CI. No child records, credentials or signing keys belong in this public repository.

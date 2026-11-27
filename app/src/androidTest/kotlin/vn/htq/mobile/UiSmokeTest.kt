@@ -31,6 +31,7 @@ class UiSmokeTest {
     @Test fun launchAndMeasureNativeViews() {
         val i=InstrumentationRegistry.getInstrumentation();val ctx=i.targetContext
         val finalQa=InstrumentationRegistry.getArguments().getString("htqFinalQa")=="true"
+        val homeQa=InstrumentationRegistry.getArguments().getString("htqHomeQa")=="true"
         fun qaShell(command:String):String=ParcelFileDescriptor.AutoCloseInputStream(i.uiAutomation.executeShellCommand(command)).bufferedReader().use{it.readText().trim()}
         if(finalQa){
             assertEquals("1",qaShell("settings get global airplane_mode_on"))
@@ -99,7 +100,7 @@ class UiSmokeTest {
                 }
             }
             fun shot(name:String){
-                if(!finalQa)return
+                if(!finalQa||homeQa&&name !in setOf("01-home","14-home-tablet","15-home-landscape"))return
                 require(name.matches(Regex("[a-z0-9-]+")))
                 i.waitForIdleSync();SystemClock.sleep(200)
                 val output=qaShell("screencap -p /data/local/tmp/htq-qa/$name.png")
@@ -111,7 +112,37 @@ class UiSmokeTest {
             assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
             if(finalQa&&a.resources.configuration.screenWidthDp in 300..359&&a.resources.configuration.fontScale<1.15f)
                 ui.areas.forEach{assertFullyVisible(it.card.title)}
-            shot("01-home");tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
+            shot("01-home")
+            if(homeQa){
+                // Dispatch actual screen coordinates to prove all artwork controls have the
+                // right hit area and retain their catalog-bound routes, not just performClick.
+                fun touchHome(label:String){
+                    val v=await(label,true);val rect=Rect()
+                    i.runOnMainSync{
+                        assertTrue("Home touch target is not visible: $label",v.getGlobalVisibleRect(rect))
+                        val d=a.resources.displayMetrics.density
+                        assertTrue("Home target too small: $label",rect.width()/d>=55.5f&&rect.height()/d>=55.5f)
+                        assertTrue(v is ImageButton)
+                        assertTrue(v.contentDescription.toString()==label)
+                    }
+                    val now=SystemClock.uptimeMillis()
+                    for(kind in listOf(android.view.MotionEvent.ACTION_DOWN,android.view.MotionEvent.ACTION_UP)){
+                        val event=android.view.MotionEvent.obtain(now,SystemClock.uptimeMillis(),kind,rect.exactCenterX(),rect.exactCenterY(),0)
+                        try{i.sendPointerSync(event)}finally{event.recycle()}
+                    }
+                    i.waitForIdleSync()
+                }
+                ui.areas.forEach{area->
+                    touchHome(area.card.title);await("Trang chủ",true)
+                    if(area.card.id=="AREA-04")await(ui.englishGroups.first().title,true)
+                    else await(ui.topics.getValue(area.pages.first().first()).card.title,true)
+                    tap("Trang chủ")
+                }
+                touchHome("Khu vườn");await("Túi đồ",true);tap("Trang chủ")
+                touchHome("Phụ huynh");await("Kết quả phép tính");assertNull(find("Theo dõi học tập"));tap("Trang chủ")
+                android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_ROUTE_PASS actual_touches=8 original_routes=true")
+            }
+            tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
             await("Khu vườn");assertNull(find("6.1 - Native technical foundation"));assertNull(find("6.1 - Loading local content"))
             fun openTask(id:String){
                 val task=ui.tasks.getValue(id);val l=ui.lessons.getValue(task.lesson);val topic=ui.topics.getValue(l.topic)
@@ -179,7 +210,9 @@ class UiSmokeTest {
                 scenario.close()
                 scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 scenario.onActivity{a=it}
-                await("Chơi tiếp nhé?");tap("Trang chủ");tap("Khu vườn")
+                await("Chơi tiếp nhé?");tap("Trang chủ")
+                if(homeQa){tap("Chơi tiếp");await("Chọn bài khác");tap("Trang chủ")}
+                tap("Khu vườn")
                 checkGardenPosition(0.5,0.5)
                 assertEquals(1,completions(select.id))
                 android.util.Log.i("HTQ_UI_QA","FINAL_ACTIVITY_REOPEN_PASS completion_and_placement_preserved=true")
@@ -445,6 +478,10 @@ class UiSmokeTest {
             scenario.onActivity{it.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE}
             waitProfile{it.orientation==Configuration.ORIENTATION_LANDSCAPE&&it.screenWidthDp>=540}
             verifyPair(true);shot("12-landscape")
+            if(homeQa){
+                tap("Trang chủ");assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
+                shot("15-home-landscape");renderApprovedTask(pairTask);verifyPair(true)
+            }
             // Reconfigure only the same CI emulator and restore settings. Final QA captures
             // a bounded representative set, never an exhaustive bulk screenshot collection.
             if(android.os.Build.FINGERPRINT.contains("generic")||android.os.Build.MODEL.contains("sdk",ignoreCase=true)){
@@ -463,6 +500,11 @@ class UiSmokeTest {
                     waitProfile{it.orientation==Configuration.ORIENTATION_PORTRAIT&&it.screenWidthDp>=760&&it.fontScale>=1.25f}
                     verifyPair(false);shot("13-tablet")
                     tap("Trang chủ");assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
+                    if(homeQa){
+                        ui.areas.forEach{await(it.card.title,true)}
+                        shot("14-home-tablet")
+                        android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_ADAPTIVE_PASS landscape=true tablet_large_text=true")
+                    }
                 }finally{
                     shell(if(oldSize==null)"wm size reset" else "wm size $oldSize")
                     shell(if(oldDensity==null)"wm density reset" else "wm density $oldDensity")

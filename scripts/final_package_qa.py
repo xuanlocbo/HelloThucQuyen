@@ -46,6 +46,14 @@ with zipfile.ZipFile(apk) as z:
         assert hashlib.sha256(z.read(prefix+rel)).digest() == hashlib.sha256(path.read_bytes()).digest(), rel
     for name in ("assets/htq_ui/content.json","assets/htq-font/NotoSans-Regular.ttf","assets/htq-font/NotoSans-Bold.ttf","assets/htq-font/LICENSE-NotoSans.txt"):
         assert name in entries, name
+    home_file = root / "app/src/main/assets/htq_home/approved.webp"
+    home_sha = None
+    if home_file.is_file():
+        home_sha = hashlib.sha256(home_file.read_bytes()).hexdigest()
+        assert home_sha == "0103f6e200f910f89c230997291d8f92ae5769a2195bb5b14d2bfd3298ba257a"
+        assert hashlib.sha256(z.read("assets/htq_home/approved.webp")).hexdigest() == home_sha
+        assert z.getinfo("assets/htq_home/approved.webp").compress_type == zipfile.ZIP_STORED
+        print("HTQ_APPROVED_HOME_ART_PASS", home_sha, home_file.stat().st_size)
     media_counts = dict(collections.Counter(p.suffix.lower() for p in expected.values()))
     for name in entries:
         if name.startswith("assets/htq/") and name.endswith((".ogg",".webp",".png")):
@@ -62,6 +70,7 @@ report = {
     "runtime_version": lock["runtime_version"],
     "runtime_sha256": lock["sha256"],
     "verified_packaged_runtime_files": len(expected),
+    "approved_home_sha256": home_sha,
     "file_types": media_counts,
     "apk_bytes": apk.stat().st_size,
     "apk_sha256": hashlib.sha256(apk.read_bytes()).hexdigest(),

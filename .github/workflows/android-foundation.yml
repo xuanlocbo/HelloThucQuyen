@@ -174,7 +174,7 @@ jobs:
           "$adb" -s "$serial" shell settings put global transition_animation_scale 0
           "$adb" -s "$serial" shell settings put global animator_duration_scale 0
           "$adb" devices -l
-          if [[ "$GITHUB_REF_NAME" == "verify-7" ]]; then
+          if [[ "$GITHUB_REF_NAME" == "verify-7" || ("${{ github.ref_name }}" == "main" && "${{ contains(github.event.head_commit.message, '[home-qa]') }}" == "true") ]]; then
             qa="$RUNNER_TEMP/htq-final-qa"
             mkdir -p "$qa/screens"
             "$adb" -s "$serial" shell mkdir -p /data/local/tmp/htq-qa
@@ -182,12 +182,16 @@ jobs:
             "$adb" -s "$serial" shell svc wifi disable
             "$adb" -s "$serial" shell svc data disable
             test "$("$adb" -s "$serial" shell settings get global airplane_mode_on | tr -d '\r')" = 1
-            gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.htqFinalQa=true
+            home_qa=false
+            if [[ "$GITHUB_REF_NAME" == "main" && "${{ contains(github.event.head_commit.message, '[home-qa]') }}" == "true" ]]; then
+              home_qa=true
+            fi
+            gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.htqFinalQa=true -Pandroid.testInstrumentationRunnerArguments.htqHomeQa="$home_qa"
             "$adb" -s "$serial" pull /data/local/tmp/htq-qa/. "$qa/screens/"
-            python3 - "$qa/screens" <<'PY'
+            python3 - "$qa/screens" "$home_qa" <<'PY'
           import pathlib, struct, sys
           folder = pathlib.Path(sys.argv[1])
-          names = ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
+          names = ["01-home", "14-home-tablet", "15-home-landscape"] if sys.argv[2] == "true" else ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
           for name in names:
               f = folder / (name + ".png")
               with f.open("rb") as stream:
@@ -202,11 +206,15 @@ jobs:
             for marker in FINAL_OFFLINE_PASS FINAL_ACTIVITY_REOPEN_PASS FINAL_UI_METRICS NATIVE_RENDER_PASS GARDEN_FLOW_PASS PARENT_FLOW_PASS NATIVE_MOTION_MODES_PASS; do
               grep -F "$marker" "$qa/native-qa.log"
             done
+            if [[ "$home_qa" == "true" ]]; then
+              grep -F APPROVED_HOME_ROUTE_PASS "$qa/native-qa.log"
+              grep -F APPROVED_HOME_ADAPTIVE_PASS "$qa/native-qa.log"
+            fi
           else
             gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest
           fi
       - name: Save final QA evidence (no APK)
-        if: github.ref_name == 'verify-7' && success()
+        if: (github.ref_name == 'verify-7' || (github.ref_name == 'main' && github.event_name == 'push' && contains(github.event.head_commit.message, '[home-qa]'))) && success()
         uses: actions/upload-artifact@v4
         with:
           name: HelloThucQuyen-final-QA-evidence

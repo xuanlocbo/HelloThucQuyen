@@ -24,6 +24,7 @@ class MainActivity : Activity() {
         init{backend.onFocusLost=audio::stop}
     }
     private lateinit var w:GardenWidgets
+    private val approvedHome by lazy { ApprovedHome(this) }
     private var f:Foundation?=null
     private val stack=ArrayList<Page>()
     private var closed=false
@@ -363,18 +364,23 @@ class MainActivity : Activity() {
             }
         }catch(e:Exception){reportRenderFailure(p,e);showError(p)}
     }
-    private fun homeScreen(base:Foundation,p:Page){val ui=base.ui
-        frame(ui,p,appTitle,{b->
-            val perPage=when{w.viewport.wide->2;w.viewport.fontScale>=1.25f && w.viewport.width<400->4;else->6}
-            paginated(ui.areas.map{it.card},perPage,p,b){cards->
-                val fills=listOf("green","blue","peach","lilac","yellow","white")
-                w.grid(b,cards.map{c->w.homeCard(c.title,c.image,fills[ui.areas.indexOfFirst{it.card.id==c.id}],active{if(c.id=="AREA-04")push(Page("SCR-012"))else push(Page("SCR-004",c.id))})},2,112)
-            }
-            val resume=runCatching{base.progress.loadSession()?.s("task_id")}.getOrNull()?.takeIf{it in ui.tasks}
-            if(resume!=null)action(b,"Chơi tiếp","teal",fn={push(Page("SCR-020",resume))})
-        },fixedBackground(ui,p.screen),footer={b->
-            w.pair(b,w.button("Khu vườn","green",action=active{gardenSelection=null;push(Page("SCR-023"))}),w.button("Phụ huynh","white",adult=true,action=active{challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50);push(Page("SCR-025"))}))
-        })
+    private fun homeScreen(base:Foundation,p:Page){
+        val ui=base.ui
+        // Retain the original, catalog-bound routes and adult gate. Only SCR-003 uses the new artwork.
+        val actions=ui.areas.map{area->
+            val c=area.card
+            HomeAction(c.id,c.title,active{
+                if(c.id=="AREA-04")push(Page("SCR-012"))else push(Page("SCR-004",c.id))
+            })
+        }+listOf(
+            HomeAction("garden","Khu vườn",active{gardenSelection=null;push(Page("SCR-023"))}),
+            HomeAction("parent","Phụ huynh",active{challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50);push(Page("SCR-025"))})
+        )
+        val resume=runCatching{base.progress.loadSession()?.s("task_id")}.getOrNull()?.takeIf{it in ui.tasks}
+        val extras=w.column()
+        if(resume!=null)action(extras,"Chơi tiếp","teal",fn={push(Page("SCR-020",resume))})
+        menuMusic(base,p)?.let{path->w.pair(extras,w.button("Nhạc nền","white",action=active{playNonTask(path)}),w.button("Dừng nhạc","white",action=active(::stopAudio)))}
+        mount(approvedHome.create(w,actions,extras))
     }
     private fun areaScreen(ui:UiContent,p:Page){val a=ui.areas.single{it.card.id==p.ref};val pages=a.pages;val i=p.index.coerceIn(0,pages.lastIndex)
         frame(ui,p,a.card.title,{b->
