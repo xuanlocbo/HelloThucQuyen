@@ -1,6 +1,6 @@
 # Hello Thuc Quyen Mobile
 
-Independent Android Mobile Native Kotlin project. Phase 6.4 garden and deferred reward integration has passed the engineering verification gate; the Phase 6.2 presentation, Phase 6.3 interactions and locked runtime are preserved. Development repository is public; this is not a released application.
+Independent Android Mobile Native Kotlin project. Phase 6.5 local parent features and non-destructive progress migration have passed the engineering verification gate; the Phase 6.2 presentation, Phase 6.3 interactions, Phase 6.4 garden/rewards and locked runtime are preserved. Development repository is public; this is not a released application.
 
 ## Locked content
 
@@ -33,10 +33,20 @@ The approved runtime input is 5.3-official-1 (4664 files, 3897 resource IDs, 17 
 - Extended the existing two Android 15 instrumentation tests to exercise deferred claims, distinct identical items, counts, relocation, undo, recreation and replay. Both tests passed, together with the full existing core contract, 660-task rendering sweep, debug build and lint.
 - Acceptance covers the implemented and tested 6.4 garden/reward scope; it does not replace release, specialist or physical-device validation.
 
+## Verified 6.5 baseline
+
+- Tested application commit: c4152b0a2cb4a057d43a520efc4bb6e48b36b8e6.
+- CI: https://github.com/xuanlocbo/HelloThucQuyen/actions/runs/45955161529 (SUCCESS, 2026-11-27, first run on verify-6.5).
+- Local parent progress distinguishes opened lessons, validated completions and explicit participation; review suggestions use actual recorded lesson openings, without ranking or remote tracking.
+- Storage schema v2 adds only the opened_lessons table. The tested v1-to-v2 migration preserves existing session, completion, reward and garden records. Historical openings can be recovered only from existing completion/session evidence, not invented.
+- Parent gate tests cover incorrect challenges, exact core expiry boundary and closure; native UI tests cover reauthorization after recreation, persisted settings, the activity-end rest reminder, and cancellation and confirmation of progress reset. Reset preserves content and parent preferences.
+- Both Android 15 instrumentation tests, the full existing core contract, debug build and lint passed. All locked resource files remain unchanged. No additional media or redundant test run was needed on the verification branch.
+- This engineering acceptance is limited to the tested scope, not a physical-device, specialist-content or release audit.
+
 Subsequent phases must follow the approved project plan. Do not fabricate completion, grading, playback completion or rewards.
 
 ## Toolchain and release gate
 
-JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2, verify-6.3 and verify-6.4 are covered by CI. No child records, credentials or signing keys belong in this public repository.
+JDK 17, Gradle 8.9, AGP 8.7.2, Kotlin 2.1.21, Android SDK 35. Preserve the tested emulator and CI environment. Main, verify-6.2, verify-6.3, verify-6.4 and verify-6.5 are covered by CI. No child records, credentials or signing keys belong in this public repository.
 
 release_ready=false. No release APK publication or public APK artifact upload. Source redistribution rights, specialist content review and final device validation remain release gates. Public source visibility does not establish redistribution permission.
