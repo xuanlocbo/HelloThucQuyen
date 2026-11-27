@@ -12,34 +12,15 @@ fun main(args: Array<String>) {
     // All indexed assets have actual files; no media decoding or listening is repeated.
     check(c.paths.all { File(root, it).isFile }); check(c.paths.size == 4664)
     println("FILES_OK ${c.paths.size}")
-    val evaluator = AssessmentEngine(c); val rewards = RewardPolicy(c); var supported = 0; var deferred = 0
+    val rewards = RewardPolicy(c)
     val memoryLedger = linkedMapOf<String, RewardEntitlement>()
-    c.assessment.forEach { (id, a) ->
-        val rule = a.o("rule"); val type = rule.s("type")
-        val response = when (type) {
-            "single_object" -> Response.Single(rule.s("accepted_id"))
-            "set_equals" -> Response.Selection(rule.strings("accepted_ids"))
-            "ordered_sequence" -> Response.Sequence(rule.a("accepted_sequences").first().arr().map { it.str() })
-            "participation" -> Response.ParticipationDone
-            else -> null
-        }
-        if (response == null) {
-            check(evaluator.evaluate(id, Response.Single("invalid"), true) == Verdict.RequiresInteractionEngine); deferred++
-        } else {
-            check(evaluator.evaluate(id, response, false) == Verdict.NotSubmitted)
-            val completed = evaluator.evaluate(id, response, true) as Verdict.Completed
-            val entitlement = rewards.entitlement(completed.ticket); check(entitlement.taskId == id && entitlement.quantity == 1)
-            check(memoryLedger.putIfAbsent(id, entitlement) == null); check(memoryLedger.putIfAbsent(id, entitlement) == entitlement)
-            val incorrect = when (response) {
-                is Response.Single -> Response.Single("invalid")
-                is Response.Selection -> Response.Selection(response.ids + "invalid")
-                is Response.Sequence -> Response.Sequence(response.ids + "invalid")
-                Response.ParticipationDone -> Response.Single("invalid")
-            }
-            check(evaluator.evaluate(id, incorrect, true) !is Verdict.Completed); supported++
-        }
+    AssessmentChecks.run(c) { ticket ->
+        val entitlement = rewards.entitlement(ticket)
+        check(entitlement.taskId == ticket.taskId && entitlement.quantity == 1)
+        check(memoryLedger.putIfAbsent(ticket.taskId, entitlement) == null)
+        check(memoryLedger.putIfAbsent(ticket.taskId, entitlement) == entitlement)
     }
-    println("ASSESSMENT_OK supported_tasks=$supported deferred_tasks=$deferred supported_rule_types=${evaluator.implementedRules.size} all_rule_types=${c.ruleTypes.size}")
+    check(memoryLedger.size == 660)
     val audioPolicy = TaskAudioPolicy(c); var promptCount = 0; var listeningCount = 0
     for (id in c.tasks.keys) {
         check(audioPolicy.request(id, AudioEvent.PROMPT, false) == null)

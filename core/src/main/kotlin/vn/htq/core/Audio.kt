@@ -21,24 +21,67 @@ class TaskAudioPolicy(private val catalog: Catalog) {
         require(ids.size <= 64)
         return AudioRequest(ids.map { catalog.assetPath(it, "audio") })
     }
+    /** The caller supplies an already-approved non-task presentation asset. */
+    fun libraryRequest(path: String, childRequested: Boolean): AudioRequest? =
+        if(childRequested && path in catalog.paths && path.startsWith("audio/") && path.endsWith(".ogg")) AudioRequest(listOf(path)) else null
 }
 interface AudioBackend {
     /** completion callback must be delivered on the same serial dispatch thread as play/stop. */
     fun play(path: String, onComplete: (Boolean) -> Unit)
     fun stop()
 }
-/** Single primary stream. New explicit requests invalidate stale callbacks; lifecycle stop never auto-resumes. */
+/** One primary stream. Stale/duplicate clip callbacks cannot finish a newer queue. */
 class AudioArbiter(private val backend: AudioBackend) {
     private var epoch = 0L
+    private var clip = 0L
     private var queue: List<String> = emptyList()
     private var index = 0
+    private var finished: ((Boolean)->Unit)? = null
     var active = false; private set
-    fun request(request: AudioRequest) { stop(); if (request.paths.isEmpty()) return; queue = request.paths.toList(); index = 0; active = true; next(epoch) }
+    fun request(request: AudioRequest) = request(request,null)
+    fun request(request: AudioRequest, onFinished: ((Boolean)->Unit)?) {
+        stop()
+        if(request.paths.isEmpty()){onFinished?.invoke(false);return}
+        queue=request.paths.toList();index=0;finished=onFinished;active=true;next(epoch)
+    }
+    private fun complete(token:Long,ok:Boolean){
+        if(token!=epoch||!active)return
+        val cb=finished
+        stop()
+        cb?.invoke(ok)
+    }
     private fun next(token: Long) {
         if (token != epoch || !active) return
-        if (index >= queue.size) { active = false; queue = emptyList(); return }
-        val path = queue[index++]
-        try { backend.play(path) { ok -> if (token == epoch && active) { if (ok) next(token) else stop() } } } catch (_: Exception) { stop() }
+        if (index >= queue.size) { complete(token,true); return }
+        val path = queue[index++];val thisClip=++clip
+        try { backend.play(path) { ok -> if(token==epoch&&active&&thisClip==clip){if(ok)next(token)else complete(token,false)} } }
+        catch (_: Exception) { if(token==epoch&&active&&thisClip==clip)complete(token,false) }
     }
-    fun stop() { epoch++; active = false; queue = emptyList(); index = 0; backend.stop() }
+    /** Cancellation discards the completion callback. No autoplay or success on stop. */
+    fun stop() { epoch++;clip++;active=false;queue=emptyList();index=0;finished=null;backend.stop() }
+}
+/** Valid only for its original active listening session. No persistence or public constructor. */
+class ListeningReceipt internal constructor(internal val owner: ListeningGate, internal val generation: Long, val taskId:String)
+class ListeningGate(private val catalog:Catalog,private val audio:AudioArbiter){
+    private val policy=TaskAudioPolicy(catalog)
+    private var generation=0L
+    private var proof:ListeningReceipt?=null
+    var taskId:String?=null;private set
+    fun required(id:String)=catalog.tasks.getValue(id).o("audio").strings("story_before_question").isNotEmpty()
+    fun enter(id:String){require(required(id));leave();taskId=id}
+    fun leave(){generation++;proof=null;taskId=null;audio.stop()}
+    fun receipt(id:String):ListeningReceipt?=proof?.takeIf{valid(it,catalog,id)}
+    internal fun valid(value:ListeningReceipt,source:Catalog,id:String)=source===catalog&&value.owner===this&&value.generation==generation&&value.taskId==id&&taskId==id&&proof===value
+    fun start(id:String,onFinished:(Boolean)->Unit):Boolean{
+        if(taskId!=id||!required(id))return false
+        proof=null;val token=++generation
+        val request=policy.request(id,AudioEvent.LISTEN,true)?:return false
+        audio.request(request){ok->
+            if(generation==token&&taskId==id){
+                if(ok)proof=ListeningReceipt(this,token,id)
+                onFinished(ok)
+            }
+        }
+        return true
+    }
 }

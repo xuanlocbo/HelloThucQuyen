@@ -39,41 +39,6 @@ class Navigator(private val catalog: Catalog, private val stopAudio: () -> Unit)
         go(if (next == null) Route.LevelRoute(level.id) else Route.TaskRoute(next)); return true
     }
 }
-sealed class Response {
-    data class Single(val id: String): Response()
-    data class Selection(val ids: List<String>): Response()
-    data class Sequence(val ids: List<String>): Response()
-    object ParticipationDone: Response()
-}
-enum class CompletionKind(val wire: String) { GRADED("validated_completion"), OPEN("explicit_participation_done") }
-/** A completion ticket cannot be constructed by the Android UI module. */
-class CompletionTicket internal constructor(val taskId: String, val kind: CompletionKind)
-sealed class Verdict {
-    data class Completed(val ticket: CompletionTicket): Verdict()
-    object Retry: Verdict()
-    object NotSubmitted: Verdict()
-    object RequiresInteractionEngine: Verdict()
-}
-/** Foundation only: complex evaluators are implemented with their renderer in 6.3. Unknown rules fail closed. */
-class AssessmentEngine(private val catalog: Catalog) {
-    val implementedRules = setOf("single_object", "set_equals", "ordered_sequence", "participation")
-    fun evaluate(taskId: String, response: Response, explicitlySubmitted: Boolean): Verdict {
-        if (!explicitlySubmitted) return Verdict.NotSubmitted
-        val spec = catalog.assessment.getValue(taskId)
-        if (!spec.b("enabled") || !spec.b("evaluate_only_after_explicit_response")) return Verdict.RequiresInteractionEngine
-        val rule = spec.o("rule")
-        if (rule.s("type") == "participation") return if (response == Response.ParticipationDone)
-            Verdict.Completed(CompletionTicket(taskId, CompletionKind.OPEN)) else Verdict.NotSubmitted
-        if (spec.b("no_grade_open")) return Verdict.RequiresInteractionEngine
-        val accepted = when (rule.s("type")) {
-            "single_object" -> (response as? Response.Single)?.id == rule.s("accepted_id")
-            "set_equals" -> (response as? Response.Selection)?.ids?.let { ids -> ids.size == ids.toSet().size && ids.toSet() == rule.strings("accepted_ids").toSet() } == true
-            "ordered_sequence" -> (response as? Response.Sequence)?.ids?.let { ids -> rule.a("accepted_sequences").any { seq -> seq.arr().map { it.str() } == ids } } == true
-            else -> return Verdict.RequiresInteractionEngine
-        }
-        return if (accepted) Verdict.Completed(CompletionTicket(taskId, CompletionKind.GRADED)) else Verdict.Retry
-    }
-}
 data class RewardEntitlement(val taskId: String, val itemId: String, val quantity: Int, val completionKind: String)
 class RewardPolicy(private val catalog: Catalog) {
     fun entitlement(ticket: CompletionTicket): RewardEntitlement {
