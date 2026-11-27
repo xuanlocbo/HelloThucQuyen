@@ -131,12 +131,29 @@ class UiSmokeTest {
             assertFalse(await("Xong").isEnabled);tapId(wrong);tap("Xong");await("Bé thử thêm một lần nhé!");assertEquals(before,completions(select.id))
             tapId(right);scenario.recreate();scenario.onActivity{a=it};await(select.prompt);assertTrue(await("Xong").isEnabled)
             tap("Xong");await("Bé làm tốt lắm!");assertEquals(1,completions(select.id));tap("Tiếp tục");tap("Bỏ qua")
-            await("Về bài học");tap("Xem quà của bé");tap("Mở quà");await("Bé đã nhận quà!");tap("Túi đồ");await("Trong túi: 1");tap("Trang chủ")
+            await("Về bài học");tap("Xem quà của bé");tap("Để sau");tap("Trang chủ")
+            tap("Khu vườn");await("Xem quà của bé");tap("Túi đồ");tap("Xem quà của bé")
+            scenario.recreate();scenario.onActivity{a=it};await("Mở quà")
+            tap("Mở quà");await("Bé đã nhận quà!");tap("Túi đồ");await("Trong túi: 1");assertNull(find("Xem quà của bé"));tap("Trang chủ")
             tap("Khu vườn");tap("Đặt vật");tap("Đặt vật 1");tap("Chọn vị trí bằng nút");tap("Chính giữa")
+            fun checkGardenPosition(x:Double,y:Double){
+                val store=LocalProgress(ctx,catalog)
+                try{
+                    val placed=store.gardenEntries().single{it.task==select.id}
+                    assertEquals(x,placed.x!!,0.000001);assertEquals(y,placed.y!!,0.000001)
+                    assertEquals(1,store.inventory().values.sum())
+                }finally{store.close()}
+            }
+            checkGardenPosition(0.5,0.5)
+            tap("Di chuyển vật");tap("Di chuyển vật 1");tap("Chọn vị trí bằng nút");tap("Trên trái")
+            checkGardenPosition(1.0/6,1.0/6);tap("Hoàn tác");checkGardenPosition(0.5,0.5)
+            scenario.recreate();scenario.onActivity{a=it};await("Ngắm vườn");checkGardenPosition(0.5,0.5)
             tap("Túi đồ");await("Đã đặt: 1");await("Trong túi: 0");tap("Quay lại")
             tap("Cất vật");tap("Cất vật 1");tap("Túi đồ");await("Trong túi: 1");tap("Quay lại")
             tap("Hoàn tác");tap("Túi đồ");await("Đã đặt: 1");tap("Trang chủ")
             openTask(select.id);tapId(right);tap("Xong");await("Bé làm tốt lắm!");assertEquals(1,completions(select.id));tap("Trang chủ")
+            tap("Khu vườn");assertNull(find("Xem quà của bé"));checkGardenPosition(0.5,0.5);tap("Trang chủ")
+            android.util.Log.i("HTQ_UI_QA","GARDEN_FLOW_PASS deferred=true move=true undo=true restored=true replay_no_reward=true")
             // Real Android MediaPlayer completion: cancelling must not unlock the question.
             val gated=ui.tasks.getValue("15.04-L1-Q01")
             fun openGated(){

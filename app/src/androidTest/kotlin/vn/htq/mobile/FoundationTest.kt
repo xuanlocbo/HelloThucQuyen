@@ -20,16 +20,26 @@ class FoundationTest {
         assertEquals(544, catalog.gradedCount)
         assertEquals(116, catalog.openCount)
         val evaluator = AssessmentEngine(catalog)
-        val ticket = catalog.activities.values.flatMap { it.taskIds }
-            .map { evaluator.evaluate(it, Response.ParticipationDone, true) }
-            .filterIsInstance<Verdict.Completed>().first().ticket
+        val policy=RewardPolicy(catalog)
+        val pair=catalog.activities.values.flatMap{it.taskIds}
+            .map{evaluator.evaluate(it,Response.ParticipationDone,true)}
+            .filterIsInstance<Verdict.Completed>().map{it.ticket}
+            .groupBy{policy.entitlement(it).itemId}.values.first{it.size>=2}.take(2)
+        val ticket=pair[0];val second=pair[1]
+        val item=policy.entitlement(ticket).itemId
+        assertEquals(item,policy.entitlement(second).itemId)
+        assertNotEquals(ticket.taskId,second.taskId)
         // This test runs in an isolated CI emulator, not on a user's phone.
         context.deleteDatabase("htq_progress.db")
         try {
             val store = LocalProgress(context, catalog)
-            assertTrue(store.commit(ticket))
-            assertFalse(store.commit(ticket))
-            assertEquals(1, store.completedCount())
+            assertFalse(store.claim(ticket.taskId));assertFalse(store.place(ticket.taskId,0.5,0.5))
+            assertTrue(store.commit(ticket));assertTrue(store.commit(second))
+            assertFalse(store.commit(ticket));assertFalse(store.commit(second))
+            assertEquals(2,store.completedCount())
+            assertEquals(setOf(ticket.taskId,second.taskId),store.pendingRewards().map{it.task}.toSet())
+            assertTrue(store.inventory().isEmpty());assertTrue(store.gardenEntries().isEmpty())
+            assertFalse(store.place(ticket.taskId,0.5,0.5))
             store.saveSession(SessionPolicy(catalog).snapshotForTask(ticket.taskId))
             store.close()
             val restored = LocalProgress(context, catalog)
@@ -37,20 +47,39 @@ class FoundationTest {
             assertTrue(restored.claim(ticket.taskId))
             assertFalse(restored.claim(ticket.taskId))
             assertFalse(restored.commit(ticket))
+            assertEquals(listOf(second.taskId),restored.pendingRewards().map{it.task})
+            assertEquals(item,restored.claimedReward(ticket.taskId));assertNull(restored.claimedReward(second.taskId))
             assertEquals(1, restored.inventory().values.sum())
             val owned=restored.inventoryBreakdown().single()
             assertEquals(1,owned.inBag);assertEquals(0,owned.placed)
             assertTrue(restored.place(ticket.taskId,0.5,0.5))
             assertEquals(0,restored.inventoryBreakdown().single().inBag)
             assertEquals(1,restored.inventoryBreakdown().single().placed)
-            restored.putAway(ticket.taskId)
-            assertEquals(1,restored.inventoryBreakdown().single().inBag)
-            assertEquals(0,restored.inventoryBreakdown().single().placed)
+            assertTrue(restored.place(ticket.taskId,0.25,0.75))
+            assertEquals(1,restored.gardenEntries().size)
+            assertEquals(0.25,restored.gardenEntries().single().x!!,0.000001)
+            assertEquals(1,restored.inventoryBreakdown().single().placed)
             restored.close()
-            val again = LocalProgress(context, catalog)
-            assertFalse(again.claim(ticket.taskId))
-            assertEquals(1, again.inventory().values.sum())
+            val again=LocalProgress(context,catalog)
+            assertEquals(listOf(second.taskId),again.pendingRewards().map{it.task})
+            assertEquals(0.75,again.gardenEntries().single().y!!,0.000001)
+            assertFalse(again.claim(ticket.taskId));assertTrue(again.claim(second.taskId));assertFalse(again.claim(second.taskId))
+            assertTrue(again.pendingRewards().isEmpty())
+            assertEquals(mapOf(item to 2),again.inventory())
+            assertTrue(again.place(second.taskId,0.8,0.2))
+            assertEquals(2,again.inventoryBreakdown().single().placed)
+            assertTrue(again.putAway(ticket.taskId));assertFalse(again.putAway(ticket.taskId))
+            assertEquals(1,again.inventoryBreakdown().single().inBag)
+            assertEquals(1,again.inventoryBreakdown().single().placed)
+            assertEquals(0.8,again.gardenEntries().single{it.task==second.taskId}.x!!,0.000001)
+            assertEquals(2,again.completedCount());assertFalse(again.commit(second))
             again.close()
+            val finalStore=LocalProgress(context,catalog)
+            assertEquals(mapOf(item to 2),finalStore.inventory())
+            assertEquals(1,finalStore.inventoryBreakdown().single().placed)
+            assertEquals(1,finalStore.inventoryBreakdown().single().inBag)
+            assertTrue(finalStore.pendingRewards().isEmpty())
+            finalStore.close()
         } finally { context.deleteDatabase("htq_progress.db") }
     }
 }

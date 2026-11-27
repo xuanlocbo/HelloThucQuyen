@@ -44,6 +44,20 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
         }
     }
     override fun inventory(): Map<String, Int> = readableDatabase.rawQuery("SELECT item_id,quantity FROM garden_inventory", null).use { c -> buildMap { while (c.moveToNext()) put(c.getString(0), c.getInt(1)) } }
+    data class EarnedReward(val task:String,val item:String)
+    data class GardenEntry(val task:String,val item:String,val x:Double?,val y:Double?)
+    /** Earned, deferred gifts remain recoverable, independently of the current lesson. */
+    fun pendingRewards():List<EarnedReward> = readableDatabase.rawQuery(
+        "SELECT task_id,item_id FROM reward_ledger WHERE claimed=0 ORDER BY task_id",null
+    ).use{c->buildList{while(c.moveToNext())add(EarnedReward(c.getString(0),c.getString(1)))}}
+    fun claimedReward(taskId:String):String? = readableDatabase.rawQuery(
+        "SELECT item_id FROM reward_ledger WHERE task_id=? AND claimed=1",arrayOf(taskId)
+    ).use{c->if(c.moveToFirst())c.getString(0)else null}
+    /** Each claimed entitlement has a stable task ID, even when its art matches another item. */
+    fun gardenEntries():List<GardenEntry> = readableDatabase.rawQuery(
+        "SELECT l.task_id,l.item_id,p.x,p.y FROM reward_ledger l LEFT JOIN garden_placements p ON l.task_id=p.task_id WHERE l.claimed=1 ORDER BY l.task_id",null
+    ).use{c->buildList{while(c.moveToNext())add(GardenEntry(c.getString(0),c.getString(1),
+        if(c.isNull(2))null else c.getDouble(2),if(c.isNull(3))null else c.getDouble(3)))}}
     // Read-only breakdown: inventory includes all claimed items, even after placement.
     data class InventoryItem(val itemId: String, val total: Int, val placed: Int) {
         init { require(total > 0 && placed in 0..total) }
@@ -63,11 +77,11 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
     fun place(taskId: String, x: Double, y: Double): Boolean = transaction { db ->
         require(x in 0.0..1.0 && y in 0.0..1.0)
         val owned = db.rawQuery("SELECT claimed FROM reward_ledger WHERE task_id=?", arrayOf(taskId)).use { c -> c.moveToFirst() && c.getInt(0) == 1 }
-        if (!owned) false else { db.insertWithOnConflict("garden_placements", null, ContentValues().apply { put("task_id", taskId); put("x", x); put("y", y) }, SQLiteDatabase.CONFLICT_REPLACE); true }
+        if (!owned) false else db.insertWithOnConflict("garden_placements", null, ContentValues().apply { put("task_id", taskId); put("x", x); put("y", y) }, SQLiteDatabase.CONFLICT_REPLACE)!=-1L
     }
     fun resetProgress() = transaction { db ->
         for(table in listOf("garden_placements","garden_inventory","reward_ledger","completions","session_state"))db.delete(table,null,null)
         Unit
     }
-    fun putAway(taskId: String) { writableDatabase.delete("garden_placements", "task_id=?", arrayOf(taskId)) }
+    fun putAway(taskId: String):Boolean = writableDatabase.delete("garden_placements", "task_id=?", arrayOf(taskId))==1
 }

@@ -131,7 +131,8 @@ class MainActivity : Activity() {
         "SCR-010"->ui.letters.any{it.id==p.ref}
         "SCR-016","SCR-017"->ui.stories[p.ref]?.screen==p.screen
         "SCR-019","SCR-020"->p.ref in ui.tasks
-        "SCR-021","SCR-022"->p.ref in ui.levels
+        "SCR-021"->p.ref in ui.levels
+        "SCR-022"->p.ref.isEmpty() || p.ref in ui.levels
         else->ui.tasks[p.ref]?.screen==p.screen
     }
     private fun decodePage(raw:String):Page?=runCatching{val x=raw.split('|');require(x.size==4);val p=Page(x[0],x[1],x[2].toInt(),x[3]=="1");require(p.index in 0..660);p}.getOrNull()
@@ -343,7 +344,7 @@ class MainActivity : Activity() {
             val resume=runCatching{base.progress.loadSession()?.s("task_id")}.getOrNull()?.takeIf{it in ui.tasks}
             if(resume!=null)action(b,"Chơi tiếp","teal",fn={push(Page("SCR-020",resume))})
         },fixedBackground(ui,p.screen),footer={b->
-            w.pair(b,w.button("Khu vườn","green",action=active{push(Page("SCR-023"))}),w.button("Phụ huynh","white",adult=true,action=active{challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50);push(Page("SCR-025"))}))
+            w.pair(b,w.button("Khu vườn","green",action=active{gardenSelection=null;push(Page("SCR-023"))}),w.button("Phụ huynh","white",adult=true,action=active{challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50);push(Page("SCR-025"))}))
         })
     }
     private fun areaScreen(ui:UiContent,p:Page){val a=ui.areas.single{it.card.id==p.ref};val pages=a.pages;val i=p.index.coerceIn(0,pages.lastIndex)
@@ -397,12 +398,14 @@ class MainActivity : Activity() {
             else paginated(ui.tasks.values.filter{it.screen==p.ref&&(it.ready||it.prelude)},4,p,b){items->w.grid(b,items.map{t->val lesson=ui.lessonForTask(t.id);w.card(lesson.card.title,lesson.card.image,"green",action=active{openTask(t.id)})},2)}
         },fixedBackground(ui,p.screen))
     }
-    private data class Earned(val task:String,val item:String)
-    private fun earned(base:Foundation,level:String):List<Earned>{
-        val allowed=base.ui.levels.getValue(level).tasks.toSet();val result=mutableListOf<Earned>()
-        base.progress.readableDatabase.rawQuery("SELECT task_id,item_id FROM reward_ledger WHERE claimed=0",null).use{c->while(c.moveToNext()){
-            val task=c.getString(0);val item=c.getString(1);if(task in allowed && item in base.ui.rewardArt)result.add(Earned(task,item))
-        }};return result
+    private fun rewardTasks(base:Foundation,level:String):List<String> =
+        if(level.isEmpty())base.ui.tasks.keys.sorted() else base.ui.levels.getValue(level).tasks
+    private fun earned(base:Foundation,level:String):List<LocalProgress.EarnedReward>{
+        val allowed=rewardTasks(base,level).toSet()
+        return base.progress.pendingRewards().filter{it.task in allowed && it.item in base.ui.rewardArt}
+    }
+    private fun pendingGiftAction(base:Foundation,b:LinearLayout){
+        if(base.progress.pendingRewards().isNotEmpty())action(b,"Xem quà của bé","teal",fn={push(Page("SCR-022"))})
     }
     private fun activityEnd(base:Foundation,p:Page){
         val ui=base.ui;val level=ui.levels.getValue(p.ref);val completed=mutableSetOf<String>()
@@ -420,8 +423,8 @@ class MainActivity : Activity() {
         })
     }
     private fun rewardScreen(base:Foundation,p:Page){val ui=base.ui;val rewards=earned(base,p.ref)
-        val level=ui.levels.getValue(p.ref)
-        val claimed=if(p.extra)level.tasks.getOrNull(p.index)?.let{task->base.progress.readableDatabase.rawQuery("SELECT item_id FROM reward_ledger WHERE task_id=? AND claimed=1",arrayOf(task)).use{c->if(c.moveToFirst())c.getString(0)else null}}else null
+        val tasks=rewardTasks(base,p.ref)
+        val claimed=if(p.extra)tasks.getOrNull(p.index)?.let(base.progress::claimedReward)else null
         frame(ui,p,"Quà của bé",{b->
             if(claimed!=null){
                 ui.screenArt(p.screen).firstOrNull{it.endsWith("0026.webp")}?.let{w.art(b,it,150,"Hộp quà đã mở")}
@@ -432,7 +435,7 @@ class MainActivity : Activity() {
             else {ui.screenArt(p.screen).firstOrNull{it.endsWith("0027.webp")}?.let{w.art(b,it,200,"Hộp quà chưa mở")}
                 action(b,"Mở quà","teal",fn={
                     val entry=rewards.first()
-                    if(base.progress.claim(entry.task))replace(p.copy(index=level.tasks.indexOf(entry.task),extra=true))else refreshTask()
+                    if(base.progress.claim(entry.task))replace(p.copy(index=tasks.indexOf(entry.task),extra=true))else refreshTask()
                 })
             }
             action(b,"Để sau","white",fn=::back);action(b,"Túi đồ","green",fn={push(Page("SCR-024"))})
@@ -504,35 +507,32 @@ class MainActivity : Activity() {
             }
         })
     }
-    private data class GardenEntry(val task:String,val item:String,val x:Double?,val y:Double?)
-    private var gardenUndo:GardenEntry?=null
+    private var gardenUndo:LocalProgress.GardenEntry?=null
     private fun garden(base:Foundation,p:Page){val ui=base.ui
-        val owned=mutableListOf<GardenEntry>()
-        base.progress.readableDatabase.rawQuery("SELECT l.task_id,l.item_id,p.x,p.y FROM reward_ledger l LEFT JOIN garden_placements p ON p.task_id=l.task_id WHERE l.claimed=1 ORDER BY l.task_id",null).use{c->while(c.moveToNext()){
-            owned.add(GardenEntry(c.getString(0),c.getString(1),if(c.isNull(2))null else c.getDouble(2),if(c.isNull(3))null else c.getDouble(3)))
-        }}
+        val owned=base.progress.gardenEntries()
         val placed=owned.filter{it.x!=null&&it.y!=null};val available=owned.filter{it.x==null&&it.y==null}
         val items=placed.mapNotNull{e->ui.rewardArt[e.item]?.let{GardenWidgets.GardenItem(it,e.x!!.toFloat(),e.y!!.toFloat())}}
-        val selected=available.firstOrNull{it.task==gardenSelection}
-        fun put(e:GardenEntry,x:Double,y:Double){
-            if(base.progress.place(e.task,x,y)){gardenUndo=e;gardenSelection=null;if(p.ref=="positions")replace(Page("SCR-023"))else refreshTask()}
+        val selected=owned.firstOrNull{it.task==gardenSelection}
+        fun put(e:LocalProgress.GardenEntry,x:Double,y:Double){
+            if(page==p&&base.progress.place(e.task,x,y)){gardenUndo=e;gardenSelection=null;if(p.ref=="positions")replace(Page("SCR-023"))else refreshTask()}
         }
         frame(ui,p,"Khu vườn của bé",{b->
-            if(p.ref=="place"||p.ref=="away"){
-                val choosing=p.ref=="place";val list=if(choosing)available else placed
-                heading(b,if(choosing)"Chọn vật để đặt" else "Chọn vật để cất")
+            if(p.ref in setOf("place","away","move")){
+                val list=if(p.ref=="place")available else placed
+                val verb=when(p.ref){"place"->"Đặt";"move"->"Di chuyển";else->"Cất"}
+                heading(b,when(p.ref){"place"->"Chọn vật để đặt";"move"->"Chọn vật để di chuyển";else->"Chọn vật để cất"})
                 if(list.isEmpty())w.add(b,w.text("Không có vật phẩm",22))else paginated(list,w.viewport.pageSize(6),p,b){rows->
-                    w.grid(b,rows.mapIndexed{i,e->w.card(if(choosing)"Đặt vật ${i+1}" else "Cất vật ${i+1}",ui.rewardArt.getValue(e.item),"white",action=active{
-                        if(choosing){gardenSelection=e.task;replace(Page("SCR-023"))}
-                        else{base.progress.putAway(e.task);gardenUndo=e;replace(Page("SCR-023"))}
+                    w.grid(b,rows.mapIndexed{i,e->w.card("$verb vật ${i+1}",ui.rewardArt.getValue(e.item),"white",action=active{
+                        if(p.ref!="away"){gardenSelection=e.task;replace(Page("SCR-023"))}
+                        else if(base.progress.putAway(e.task)){gardenUndo=e;replace(Page("SCR-023"))}
                     })},2)
                 }
                 action(b,"Hủy","white",fn={gardenSelection=null;replace(Page("SCR-023"))})
             }else{
-                val onPlace:((Double,Double)->Unit)?=selected?.let{e->{x,y->if(resumed&&!closed&&page.screen=="SCR-023")put(e,x,y)}}
+                val onPlace:((Double,Double)->Unit)?=selected?.let{e->{x,y->if(resumed&&!closed&&page==p)put(e,x,y)}}
                 ui.screenArt(p.screen).firstOrNull()?.let{w.add(b,w.gardenScene(it,items,onPlace),8,300)}
                 if(selected!=null){
-                    heading(b,"Chạm vào chỗ bé muốn đặt")
+                    heading(b,if(selected.x==null)"Chạm vào chỗ bé muốn đặt" else "Chạm vào vị trí mới")
                     // Equivalent accessible alternative to a precise pointer gesture.
                     action(b,"Chọn vị trí bằng nút","white",fn={replace(Page("SCR-023","positions"))})
                     if(p.ref=="positions"){
@@ -544,13 +544,21 @@ class MainActivity : Activity() {
                     w.add(b,w.text("Ngắm vườn",20,true))
                     action(b,"Túi đồ","teal",fn={push(Page("SCR-024"))})
                     if(available.isNotEmpty())action(b,"Đặt vật","white",fn={replace(Page("SCR-023","place"))})
-                    if(placed.isNotEmpty())action(b,"Cất vật","white",fn={replace(Page("SCR-023","away"))})
-                    if(gardenUndo!=null)action(b,"Hoàn tác","white",fn={gardenUndo?.let{e->if(e.x==null||e.y==null)base.progress.putAway(e.task)else base.progress.place(e.task,e.x,e.y);gardenUndo=null;refreshTask()}})
+                    if(placed.isNotEmpty()){
+                        action(b,"Di chuyển vật","white",fn={replace(Page("SCR-023","move"))})
+                        action(b,"Cất vật","white",fn={replace(Page("SCR-023","away"))})
+                    }
+                    if(gardenUndo!=null)action(b,"Hoàn tác","white",fn={gardenUndo?.let{e->
+                        val changed=if(e.x==null||e.y==null)base.progress.putAway(e.task)else base.progress.place(e.task,e.x,e.y)
+                        if(changed){gardenUndo=null;refreshTask()}
+                    }})
+                    pendingGiftAction(base,b)
                 }
             }
         })
     }
     private fun inventory(base:Foundation,p:Page){val ui=base.ui;val owned=base.progress.inventoryBreakdown();frame(ui,p,"Túi đồ",{b->
+        pendingGiftAction(base,b)
         if(owned.isEmpty())w.add(b,w.text("Túi đồ đang trống",24))else paginated(owned,w.viewport.pageSize(6),p,b){items->
             w.grid(b,items.map{e->w.column().apply{
                 background=w.rounded("white");setPadding(w.dp(8),w.dp(8),w.dp(8),w.dp(8))
