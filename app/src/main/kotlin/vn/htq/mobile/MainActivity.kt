@@ -363,11 +363,23 @@ class MainActivity : Activity() {
         }}
         frame(ui,p,"Khu vườn của bé",{b->
             ui.screenArt(p.screen).firstOrNull()?.let{w.add(b,w.gardenScene(it,items),8,300)}
+            w.add(b,w.text("Ngắm vườn",20,true))
             action(b,"Túi đồ","teal",fn={push(Page("SCR-024"))})
+            // Placement controls remain inactive until the real 6.3 interaction is connected.
+            if(base.progress.inventoryBreakdown().any{it.inBag>0})action(b,"Đặt vật","white",enabled=false)
+            if(items.isNotEmpty())w.pair(b,w.button("Cất vật","white",enabled=false),w.button("Hoàn tác","white",enabled=false))
         })
     }
-    private fun inventory(base:Foundation,p:Page){val ui=base.ui;val owned=base.progress.inventory().entries.filter{it.value>0};frame(ui,p,"Túi đồ",{b->
-        if(owned.isEmpty())w.add(b,w.text("Túi đồ đang trống",24))else paginated(owned,w.viewport.pageSize(6),p,b){items->w.grid(b,items.map{e->w.column().apply{background=w.rounded("white");ui.rewardArt[e.key]?.let{w.art(this,it,120,"Vật phẩm")};w.add(this,w.text("× ${e.value}",24,true))}},2)}
+    private fun inventory(base:Foundation,p:Page){val ui=base.ui;val owned=base.progress.inventoryBreakdown();frame(ui,p,"Túi đồ",{b->
+        if(owned.isEmpty())w.add(b,w.text("Túi đồ đang trống",24))else paginated(owned,w.viewport.pageSize(6),p,b){items->
+            w.grid(b,items.map{e->w.column().apply{
+                background=w.rounded("white");setPadding(w.dp(8),w.dp(8),w.dp(8),w.dp(8))
+                ui.rewardArt[e.itemId]?.let{w.art(this,it,120,"Vật phẩm")}
+                w.add(this,w.text("× ${e.total}",24,true))
+                w.add(this,w.text("Trong túi: ${e.inBag}",18),4)
+                w.add(this,w.text("Đã đặt: ${e.placed}",18),4)
+            }},2)
+        }
     },fixedBackground(ui,p.screen))}
     private fun parentGate(base:Foundation,p:Page){if(challengeA !in 10..49){challengeA=Random.nextInt(10,50);challengeB=Random.nextInt(10,50)}
         frame(base.ui,p,"Dành cho phụ huynh",{b->w.add(b,w.text("Vui lòng để người lớn xác nhận.",20));heading(b,"$challengeA + $challengeB = ?")
@@ -385,11 +397,53 @@ class MainActivity : Activity() {
         action(b,"Thông tin ứng dụng","white",adult=true,fn={push(Page("SCR-032"))})
         action(b,"Về nhà","white",adult=true,fn=::home)
     })}
-    private fun parentProgress(base:Foundation,p:Page){val completed=linkedSetOf<String>();base.progress.readableDatabase.rawQuery("SELECT task_id FROM completions",null).use{c->while(c.moveToNext())completed.add(c.getString(0))}
-        frame(base.ui,p,"Theo dõi học tập",{b->w.add(b,w.text("Nhiệm vụ đã ghi nhận: ${completed.size}",20,true));paginated(base.ui.topics.values.toList(),4,p,b){items->items.forEach{t->val ids=t.lessons.flatMap{base.ui.lessons.getValue(it).levels}.flatMap{base.ui.levels.getValue(it).tasks};w.add(b,w.text("${t.card.title}: ${ids.count{it in completed}}/${ids.size}",20,center=false))}}})
+    private fun parentProgress(base:Foundation,p:Page){
+        val completed=linkedMapOf<String,String>()
+        base.progress.readableDatabase.rawQuery("SELECT task_id,kind FROM completions",null).use{c->while(c.moveToNext())completed[c.getString(0)]=c.getString(1)}
+        frame(base.ui,p,"Theo dõi học tập",{b->
+            w.add(b,w.text("Nhiệm vụ đã ghi nhận: ${completed.size}",20,true))
+            paginated(base.ui.topics.values.toList(),4,p,b){items->items.forEach{t->
+                val ids=t.lessons.flatMap{base.ui.lessons.getValue(it).levels}.flatMap{base.ui.levels.getValue(it).tasks}
+                val finished=ids.count{completed[it]=="validated_completion"}
+                val participated=ids.count{completed[it]=="explicit_participation_done"}
+                w.add(b,w.column().apply{
+                    background=w.rounded("white");setPadding(w.dp(12),w.dp(8),w.dp(12),w.dp(8))
+                    w.add(this,w.text(t.card.title,20,true,center=false),0)
+                    w.add(this,w.text("Đã hoàn thành: $finished · Đã tham gia: $participated",18,center=false),4)
+                    w.add(this,w.text("Tổng nhiệm vụ: ${ids.size}",18,center=false),4)
+                })
+            }}
+            w.add(b,w.text("Chưa có thống kê lịch sử mở bài. Có thể cùng bé ôn lại bài đã học.",18,center=false))
+        })
     }
     private fun parentAbout(base:Foundation,p:Page){frame(base.ui,p,"Thông tin ứng dụng",{b->
-        w.add(b,w.text(appTitle,28,true));w.add(b,w.text("Ứng dụng học tập ngoại tuyến, không tài khoản, không quảng cáo và không thu âm hoặc ghi hình.",18,center=false));w.add(b,w.text("Phiên bản nội dung: ${base.catalog.version}\nBản phát triển chưa phát hành chính thức.",18,center=false))
+        when(p.ref){
+            "font"->{
+                heading(b,"Noto Sans — SIL Open Font License 1.1")
+                val notice=assets.open("htq-font/LICENSE-NotoSans.txt").bufferedReader(Charsets.UTF_8).use{it.readText()}
+                w.add(b,w.text(notice,18,center=false))
+            }
+            "audio"->{
+                heading(b,"Nguồn âm thanh")
+                w.add(b,w.text("Ghi nhận theo hồ sơ tài nguyên gốc. Một số nguồn vẫn cần xác minh trước khi phát hành.",18,center=false))
+                val credits=base.catalog.open("credits/audio_attributions.json").bufferedReader(Charsets.UTF_8).use{Json.parse(it.readText()).arr()}
+                    .map{it.obj()}.filter{it.o("attribution").isNotEmpty()}
+                paginated(credits,4,p,b){rows->rows.forEach{r->
+                    val a=r.o("attribution")
+                    val fields=listOf("title","artist","voice","generator","license","license_url","source_url","changes","attribution").mapNotNull{k->a.optional(k)?.takeIf{it.isNotBlank()}}.distinct()
+                    w.add(b,w.text(fields.joinToString("\n"),18,center=false))
+                    if(r.s("license_review_status")!="retain_prior_record_evidence")w.add(b,w.text("Cần rà soát trước khi phát hành",18,true,center=false),4)
+                }}
+            }
+            else->{
+                w.add(b,w.text(appTitle,28,true))
+                w.add(b,w.text("Ứng dụng học tập ngoại tuyến, không tài khoản, không quảng cáo và không thu âm hoặc ghi hình.",18,center=false))
+                w.add(b,w.text("Bộ nội dung Hello Thục Quyên: 17 chủ đề, 110 bài học. Phiên bản nội dung: ${base.catalog.version}.",18,center=false))
+                w.add(b,w.text("Bản phát triển chưa phát hành chính thức. Không phải chứng nhận chuyên môn; một số nguồn âm thanh còn phải xác minh quyền sử dụng.",18,center=false))
+                action(b,"Giấy phép chữ Noto Sans","white",adult=true,fn={push(Page("SCR-032","font"))})
+                action(b,"Nguồn âm thanh","white",adult=true,fn={push(Page("SCR-032","audio"))})
+            }
+        }
         action(b,"Quay lại","white",adult=true,fn=::back)
     })}
     private fun taskScreen(base:Foundation,p:Page,t:UiTask){val ui=base.ui

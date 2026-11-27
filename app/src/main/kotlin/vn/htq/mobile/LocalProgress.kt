@@ -44,6 +44,21 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
         }
     }
     override fun inventory(): Map<String, Int> = readableDatabase.rawQuery("SELECT item_id,quantity FROM garden_inventory", null).use { c -> buildMap { while (c.moveToNext()) put(c.getString(0), c.getInt(1)) } }
+    // Read-only breakdown: inventory includes all claimed items, even after placement.
+    data class InventoryItem(val itemId: String, val total: Int, val placed: Int) {
+        init { require(total > 0 && placed in 0..total) }
+        val inBag: Int get() = total - placed
+    }
+    fun inventoryBreakdown(): List<InventoryItem> = readableDatabase.rawQuery(
+        """SELECT i.item_id, i.quantity, COALESCE(p.placed, 0)
+           FROM garden_inventory i
+           LEFT JOIN (
+             SELECT l.item_id, SUM(l.quantity) AS placed
+             FROM garden_placements g JOIN reward_ledger l ON g.task_id=l.task_id
+             WHERE l.claimed=1 GROUP BY l.item_id
+           ) p ON p.item_id=i.item_id
+           WHERE i.quantity>0 ORDER BY i.item_id""", null
+    ).use { c -> buildList { while(c.moveToNext()) add(InventoryItem(c.getString(0),c.getInt(1),c.getInt(2))) } }
     override fun completedCount(): Int = readableDatabase.rawQuery("SELECT COUNT(*) FROM completions", null).use { c -> c.moveToFirst(); c.getInt(0) }
     fun place(taskId: String, x: Double, y: Double): Boolean = transaction { db ->
         require(x in 0.0..1.0 && y in 0.0..1.0)

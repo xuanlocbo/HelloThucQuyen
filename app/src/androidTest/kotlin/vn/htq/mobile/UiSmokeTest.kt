@@ -158,7 +158,9 @@ class UiSmokeTest {
                 tap(label,48);assertFalse(await("Lưu cài đặt").isEnabled);tap("Quay lại")
             }
             tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertFalse(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
-            tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng");tap("Trang chủ")
+            tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng")
+            tap("Giấy phép chữ Noto Sans",48);await("Noto Sans — SIL Open Font License 1.1");tap("Quay lại")
+            tap("Nguồn âm thanh",48);await("Nguồn âm thanh");tap("Quay lại");tap("Trang chủ")
             // One final native rendering sweep of the locked task catalogue. Do not write
             // sessions or simulate grading for these view-only checks. Navigation and
             // persistence are exercised separately above by real user routes.
