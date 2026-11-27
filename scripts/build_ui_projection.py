@@ -131,7 +131,14 @@ def main():
             tid=t['task_id'];scr=t['screen_id'];s=t['scene'];total_by[scr]+=1
             row=dict(id=tid,choiceSlots=t['choice_slot_ids'],lesson=t['lesson_id'],level=t['level_id'],screen=scr,prompt=t['child_prompt'],background=asset(s['background_id']) if s.get('background_id') else None,ready=False,listen=bool(t['audio'].get('stimulus_segments') or t['audio'].get('story_before_question')),groups=[])
             objects=s['objects']; reason=None; groups=[]
-            def choice(o):
+            # Bind each rendered object at construction, before any shuffle or pagination.
+            # Retain the reference so Python cannot reuse its object identity during the task.
+            rendered_ids={}
+            def bound(o,visual):
+                rendered_ids[id(visual)]=(visual,o['object_id'])
+                return visual
+            def choice(o):return bound(o,render_choice(o))
+            def render_choice(o):
                 if o.get('visual_path'):
                     q=by_choice[o['object_id']];assert q['task_id']==tid and q['visual_path']==o['visual_path'];return img(path(q['visual_path'],'image'))
                 if o.get('glyph') is not None:return glyph(o['glyph'])
@@ -245,7 +252,7 @@ def main():
             elif scr=='SCR-053' and s.get('direction_input')=='horizontal_swipe_or_two_taps':
                 assert all(o['role']=='endpoint' for o in objects) and set(o['position'] for o in objects)=={'left','right'}
                 groups.append(group([img(asset(s['book_art_id']))],'context',1))
-                groups.append(group([dict(kind='blank'),dict(kind='blank')],'direction_endpoints',2))
+                groups.append(group([bound(o,dict(kind='blank')) for o in sorted(objects,key=lambda o:o['position'])],'direction_endpoints',2))
             elif scr=='SCR-051' and set(o['role'] for o in objects)=={'movable','container','destination'}:
                 role_group({'destination'},'context',1);role_group({'container','movable'},'sources',2)
             elif scr in ('SCR-045','SCR-051') and s.get('native_binding',{}).get('scene_type')=='graded_spatial':
@@ -324,7 +331,7 @@ def main():
                     elif tid=='09.04-L1-Q01':
                         assert len(t['audio']['stimulus_segments'])==3 and 'IMG-NAT-0048' in s['context_candidates']
                         groups.append(group([img(asset('IMG-NAT-0048'))],'context',1))
-                        groups.append(group([dict(kind='speaker') for _ in range(3)],'listen_options',3))
+                        groups.append(group([bound(o,dict(kind='speaker')) for o in objects],'listen_options',3))
                     else:reason='source-specific fixed stimulus still needs explicit authored rendering' 
                 else:
                     if s.get('fixed_context_art_id'):groups.append(group([img(asset(s['fixed_context_art_id']))],'context',1))
@@ -371,7 +378,7 @@ def main():
                     except (KeyError,ValueError):reason='participation visual geometry pending'
             elif scr=='SCR-058':
                 assert all(o['role']=='number_tile' for o in objects)
-                groups.append(group([glyph(o['value']) for o in objects],'numbers',3))
+                groups.append(group([bound(o,glyph(o['value'])) for o in objects],'numbers',3))
             elif scr=='SCR-061':
                 assert s['all_face_down'];assert all(o['role']=='memory_card' for o in objects)
                 # Face values never enter initial display projection.
@@ -406,7 +413,7 @@ def main():
                 else:
                     # Audio sources remain unlabeled, but playback for individual source cards belongs to 6.3.
                     try:
-                        groups.append(group([dict(kind='speaker') if o['role']=='audio_source' else choice(o) for o in objects if o['role'] in src],'sources',3))
+                        groups.append(group([bound(o,dict(kind='speaker')) if o['role']=='audio_source' else choice(o) for o in objects if o['role'] in src],'sources',3))
                         groups.append(group([choice(o) for o in objects if o['role'] in dst],'destinations',3))
                         if len(groups[0]['items'])>6 or len(groups[1]['items'])>6:reason='pair-preserving pagination not yet implemented'
                     except (KeyError,ValueError):reason='pair visual geometry pending'
@@ -476,6 +483,13 @@ def main():
                         paging_audit[tid]={'source':'matching visual identity or fungible instance numbers','pages':sizes}
                 row.update(ready=True,groups=groups);counts[scr]+=1
             else:deferred[tid]=reason
+            # Preserve existing source-defined page IDs; attach the same exact object
+            # IDs to previously unbound visual groups, including afterPrelude.
+            for g in row['groups']+row.get('afterPrelude',[]):
+                if 'objectIds' not in g and all(id(v) in rendered_ids for v in g['items']):
+                    g['objectIds']=[rendered_ids[id(v)][1] for v in g['items']]
+                if 'objectIds' in g:
+                    assert len(g['objectIds'])==len(g['items'])==len(set(g['objectIds'])),tid
             task_rows.append(row)
         result=dict(version='5.3-official-1',screens=screens,icons={i:icon(i) for i in ['ICO-001','ICO-002','ICO-003','ICO-007','ICO-010','ICO-020','ICO-021','ICO-043','ICO-050','ICO-051','ICO-055']},areas=areas,topics=topics,lessons=less,levels=levels,letters=letter_data,numbers=numbers,englishGroups=en_groups,vocab=vocab,phrases=phrases,stories=stories,tasks=task_rows,welcomeAudio=optional_audio('ui_voice','welcome',None,'SCR-002'),rewardArt={i:asset(i) for i in sorted({v['garden_item_asset_id'] for v in rd('engine/v52/reward_allocation.json')['task_allocations']})})
         assert len(areas)==6 and len(topics)==17 and len(less)==110 and len(levels)==330 and len(task_rows)==660 and len(choices)==816

@@ -153,7 +153,7 @@ class UiContent private constructor(
                 val groups=parseGroups(o.a("groups"))
                 val after=parseGroups(o["afterPrelude"]?.arr() ?: emptyList())
                 for (set in listOf(groups,after)) {
-                    set.forEach{g->require(g.objectIds.all{it.startsWith(o.s("id")+":")})}
+                    set.forEach{g->require(g.objectIds.all{it.startsWith(o.s("id")+":") || it in o.strings("choiceSlots")})}
                     val paired=set.filter{it.pager=="paired"}
                     if(paired.isNotEmpty())require(paired.size==2 && paired.map{it.role}.toSet()==setOf("sources","destinations") && paired[0].pageSizes==paired[1].pageSizes)
                 }

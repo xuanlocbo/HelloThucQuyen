@@ -39,6 +39,7 @@ class UiSmokeTest {
         val prefs=ctx.getSharedPreferences("htq_ui_preferences",0)
         val had=prefs.contains("welcome_seen");val previous=prefs.getBoolean("welcome_seen",false)
         assertTrue(prefs.edit().remove("welcome_seen").commit())
+        ctx.deleteDatabase("htq_progress.db")
         val scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         lateinit var a:MainActivity
         try {
@@ -90,7 +91,47 @@ class UiSmokeTest {
                     for(v in views){assertTrue("Card width $prefix",v.width/d>=55.5f);assertTrue("Card height $prefix",v.height/d>=55.5f)}
                 }
             }
-            // Actual navigation and measured preview cards, not interaction-engine grading.
+            // Real touch response, validation, persistence and reward. Source answers are read in tests only.
+            fun tapId(id:String){
+                var selected:View?=null
+                i.runOnMainSync{selected=walk(a.window.decorView).firstOrNull{it.tag==id&&it.isClickable&&it.isEnabled}}
+                val v=requireNotNull(selected){"No interactive card $id"}
+                i.runOnMainSync{assertTrue(v.performClick())};i.waitForIdleSync()
+            }
+            fun completions(id:String):Int{
+                val db=LocalProgress(ctx,catalog)
+                return try{db.readableDatabase.rawQuery("SELECT COUNT(*) FROM completions WHERE task_id=?",arrayOf(id)).use{c->c.moveToFirst();c.getInt(0)}}finally{db.close()}
+            }
+            val select=ui.tasks.getValue("01.01-L1-Q01")
+            val sourceRules=catalog.open("engine/v52/assessment_internal.json").bufferedReader().use{Json.parse(it.readText()).arr().map{v->v.obj()}.associateBy{it.s("task_id")}}
+            val right=sourceRules.getValue(select.id).o("rule").s("accepted_id")
+            val wrong=select.choiceSlots.first{it!=right}
+            openTask(select.id)
+            val before=completions(select.id)
+            assertFalse(await("Xong").isEnabled);tapId(wrong);tap("Xong");await("Bé thử thêm một lần nhé!");assertEquals(before,completions(select.id))
+            tapId(right);scenario.recreate();scenario.onActivity{a=it};await(select.prompt);assertTrue(await("Xong").isEnabled)
+            tap("Xong");await("Bé làm tốt lắm!");assertEquals(1,completions(select.id));tap("Tiếp tục");tap("Bỏ qua")
+            await("Về bài học");tap("Xem quà của bé");tap("Mở quà");await("Bé đã nhận quà!");tap("Túi đồ");await("Trong túi: 1");tap("Trang chủ")
+            tap("Khu vườn");tap("Đặt vật");tap("Đặt vật 1");tap("Chọn vị trí bằng nút");tap("Chính giữa")
+            tap("Túi đồ");await("Đã đặt: 1");await("Trong túi: 0");tap("Quay lại")
+            tap("Cất vật");tap("Cất vật 1");tap("Túi đồ");await("Trong túi: 1");tap("Quay lại")
+            tap("Hoàn tác");tap("Túi đồ");await("Đã đặt: 1");tap("Trang chủ")
+            openTask(select.id);tapId(right);tap("Xong");await("Bé làm tốt lắm!");assertEquals(1,completions(select.id));tap("Trang chủ")
+            // Real Android MediaPlayer completion: cancelling must not unlock the question.
+            val gated=ui.tasks.getValue("15.04-L1-Q01")
+            fun openGated(){
+                val l=ui.lessons.getValue(gated.lesson);val topic=ui.topics.getValue(l.topic);val area=ui.areas.single{l.topic in it.topics}
+                tap(area.card.title);repeat(area.pages.indexOfFirst{l.topic in it}){tap("Sau")};tap(topic.card.title)
+                repeat(topic.lessons.indexOf(l.card.id)/4){tap("Sau")};tap(l.card.title);tap("Chơi");tap(ui.levels.getValue(gated.level).title)
+            }
+            openGated();await("Nghe trước nhé!");assertNull(find(gated.prompt));assertFalse(await("Tiếp tục").isEnabled)
+            tap("Nghe câu chuyện");tap("Dừng");assertFalse(await("Tiếp tục").isEnabled);assertNull(find(gated.prompt))
+            tap("Nghe câu chuyện")
+            val listenDeadline=SystemClock.elapsedRealtime()+20000
+            while(!await("Tiếp tục").isEnabled&&SystemClock.elapsedRealtime()<listenDeadline){SystemClock.sleep(100);i.waitForIdleSync()}
+            assertTrue("Actual playback did not unlock gate",await("Tiếp tục").isEnabled);assertNull(find(gated.prompt));tap("Tiếp tục");await(gated.prompt)
+            scenario.recreate();scenario.onActivity{a=it};await("Nghe trước nhé!");assertNull(find(gated.prompt));assertFalse(await("Tiếp tục").isEnabled);tap("Trang chủ")
+            // Actual navigation and measured preview cards.
             openTask("05.03-L2-Q02");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
             i.runOnMainSync{
                 val density=a.resources.displayMetrics.density
@@ -157,7 +198,7 @@ class UiSmokeTest {
             for(label in listOf("Cài đặt âm thanh","Thời lượng và nghỉ","Hỗ trợ thao tác")){
                 tap(label,48);assertFalse(await("Lưu cài đặt").isEnabled);tap("Quay lại")
             }
-            tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertFalse(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
+            tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertTrue(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
             tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng")
             tap("Giấy phép chữ Noto Sans",48);await("Noto Sans — SIL Open Font License 1.1");tap("Quay lại")
             tap("Nguồn âm thanh",48);await("Nguồn âm thanh");tap("Quay lại");tap("Trang chủ")
@@ -255,6 +296,6 @@ class UiSmokeTest {
                 }
             }else tap("Trang chủ")
 
-        } finally {scenario.close();i.waitForIdleSync();if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
+        } finally {scenario.close();i.waitForIdleSync();ctx.deleteDatabase("htq_progress.db");if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
     }
 }

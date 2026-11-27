@@ -27,6 +27,12 @@ class AssessmentEngine(private val catalog: Catalog) {
         val accepted=InteractionRules.matches(taskId,rule,task.o("scene"),if(type=="any_hotspot_region")hotspots else emptyList(),response)
         return if(accepted)Verdict.Completed(CompletionTicket(taskId,CompletionKind.GRADED))else Verdict.Retry
     }
+    /** Evaluate the two cards actually turned over; no full answer map leaves core. */
+    fun memoryPairMatches(taskId:String,first:String,second:String):Boolean {
+        if(first==second)return false
+        val rule=catalog.assessment.getValue(taskId).o("rule")
+        return rule.s("type")=="memory_pairs"&&rule.a("pairs").any{v->v.arr().map{it.str()}.toSet()==setOf(first,second)}
+    }
     // Deterministic instance IDs for source pools without individual IDs. No answer data.
     fun splitInstanceIds(taskId:String):List<String> = InteractionRules.splitIds(taskId,catalog.tasks.getValue(taskId).o("scene"))
     fun selectionInstances(taskId:String):Map<String,String> = InteractionRules.poolInstances(taskId,catalog.tasks.getValue(taskId).o("scene"))

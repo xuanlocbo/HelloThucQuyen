@@ -65,5 +65,9 @@ class LocalProgress(private val context: Context, catalog: Catalog): SQLiteOpenH
         val owned = db.rawQuery("SELECT claimed FROM reward_ledger WHERE task_id=?", arrayOf(taskId)).use { c -> c.moveToFirst() && c.getInt(0) == 1 }
         if (!owned) false else { db.insertWithOnConflict("garden_placements", null, ContentValues().apply { put("task_id", taskId); put("x", x); put("y", y) }, SQLiteDatabase.CONFLICT_REPLACE); true }
     }
+    fun resetProgress() = transaction { db ->
+        for(table in listOf("garden_placements","garden_inventory","reward_ledger","completions","session_state"))db.delete(table,null,null)
+        Unit
+    }
     fun putAway(taskId: String) { writableDatabase.delete("garden_placements", "task_id=?", arrayOf(taskId)) }
 }

@@ -102,14 +102,26 @@ internal class GardenWidgets(private val activity: Activity) {
         init{contentDescription=if(zoomed)"Tranh phóng to, kéo để xem" else "Tranh";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES;isClickable=zoomed;isFocusable=zoomed;minimumHeight=dp(56)}
     }
     data class GardenItem(val path:String,val x:Float,val y:Float)
-    fun gardenScene(path:String,items:List<GardenItem>):View=object:View(activity){
-        private val bg=bitmap(path);private val pictures=items.map{bitmap(it.path)};private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    fun gardenScene(path:String,items:List<GardenItem>,onPlace:((Double,Double)->Unit)?=null):View=object:View(activity){
+        private val bg=bitmap(path);private val pictures=items.map{it.path}.distinct().associateWith(::bitmap);private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private var downX=0f;private var downY=0f;private var moved=false
+        private val slop=android.view.ViewConfiguration.get(activity).scaledTouchSlop
         override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return
             val r=FitCenter.of(width.toFloat(),height.toFloat(),bg.width.toFloat(),bg.height.toFloat());c.drawBitmap(bg,null,android.graphics.RectF(r.left,r.top,r.left+r.width,r.top+r.height),paint)
             val size=min(r.width,r.height)*.22f
-            items.forEachIndexed{i,item->val b=pictures[i];val f=FitCenter.of(size,size,b.width.toFloat(),b.height.toFloat());val x=(r.x(item.x)-size/2).coerceIn(r.left,r.left+r.width-size);val y=(r.y(item.y)-size/2).coerceIn(r.top,r.top+r.height-size);c.drawBitmap(b,null,android.graphics.RectF(x+f.left,y+f.top,x+f.left+f.width,y+f.top+f.height),paint)}
+            items.forEachIndexed{i,item->val b=pictures.getValue(item.path);val f=FitCenter.of(size,size,b.width.toFloat(),b.height.toFloat());val x=(r.x(item.x)-size/2).coerceIn(r.left,r.left+r.width-size);val y=(r.y(item.y)-size/2).coerceIn(r.top,r.top+r.height-size);c.drawBitmap(b,null,android.graphics.RectF(x+f.left,y+f.top,x+f.left+f.width,y+f.top+f.height),paint)}
         }
-        init{contentDescription="Khu vườn, ${items.size} vật phẩm đã đặt";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES}
+        override fun onTouchEvent(e:MotionEvent):Boolean{
+            if(onPlace==null)return super.onTouchEvent(e)
+            when(e.actionMasked){
+                MotionEvent.ACTION_DOWN->{downX=e.x;downY=e.y;moved=false;return true}
+                MotionEvent.ACTION_MOVE->{if(kotlin.math.abs(e.x-downX)>slop||kotlin.math.abs(e.y-downY)>slop)moved=true;return true}
+                MotionEvent.ACTION_UP->{if(!moved&&width>0&&height>0){val r=FitCenter.of(width.toFloat(),height.toFloat(),bg.width.toFloat(),bg.height.toFloat());r.inverse(e.x,e.y)?.let{q->performClick();onPlace(q.first.toDouble(),q.second.toDouble())}};return true}
+                MotionEvent.ACTION_CANCEL->{moved=true;return true}
+            };return true
+        }
+        override fun performClick():Boolean{super.performClick();return true}
+        init{contentDescription=if(onPlace==null)"Khu vườn, ${items.size} vật phẩm đã đặt" else "Chạm vào vườn để đặt vật";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES;isClickable=onPlace!=null;isFocusable=onPlace!=null;minimumHeight=dp(56)}
     }
     fun bitmap(path:String):Bitmap{
         require(path.matches(Regex("[a-z0-9_./-]+")) && path.split('/').none{it.isEmpty()||it==".."||it=="."})

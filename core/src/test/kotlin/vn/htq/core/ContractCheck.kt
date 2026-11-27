@@ -21,6 +21,8 @@ fun main(args: Array<String>) {
         check(memoryLedger.putIfAbsent(ticket.taskId, entitlement) == entitlement)
     }
     check(memoryLedger.size == 660)
+    val ui = vn.htq.core.ui.UiContent.parse(File(root.parentFile,"htq_ui/content.json").readText(),c.paths)
+    TaskInteractionChecks.run(c,ui)
     val audioPolicy = TaskAudioPolicy(c); var promptCount = 0; var listeningCount = 0
     for (id in c.tasks.keys) {
         check(audioPolicy.request(id, AudioEvent.PROMPT, false) == null)

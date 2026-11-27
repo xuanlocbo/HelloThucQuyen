@@ -10,14 +10,13 @@ import vn.htq.core.*
 import vn.htq.core.ui.*
 import kotlin.random.Random
 
-/** 6.2 candidate. Only verified presentation fields reach child views.
- *  Evaluation, reward grants and the remaining interaction engines are not simulated here.
- */
+/** Native presentation with source-bound interaction controllers. Unsupported mechanics fail closed. */
 class MainActivity : Activity() {
     private data class Page(val screen:String,val ref:String="",val index:Int=0,val extra:Boolean=false)
     private class Foundation(val catalog:Catalog,val ui:UiContent,val progress:LocalProgress,val backend:AndroidAudio) {
         val audio=AudioArbiter(backend)
         val audioPolicy=TaskAudioPolicy(catalog)
+        val listening=ListeningGate(catalog,audio)
         val navigator=Navigator(catalog,audio::stop)
         val sessions=SessionPolicy(catalog)
         val parent=ParentGate{SystemClock.elapsedRealtime()}
@@ -34,6 +33,10 @@ class MainActivity : Activity() {
     private var challengeA=0
     private var challengeB=0
     private var seed=0L
+    private var interaction:TaskInteraction?=null
+    private var preludeOpenedFor:String?=null
+    private var listeningFailed=false
+    private var gardenSelection:String?=null
     private val groupPages=mutableMapOf<String,Int>()
     private var pendingStack:ArrayList<String>?=null
     private var pendingGroupPages:Bundle?=null
@@ -140,27 +143,64 @@ class MainActivity : Activity() {
     private fun playNonTask(path:String?){
         if(!resumed||closed||path==null)return
         val base=f?:return;require(path in base.catalog.paths && path.startsWith("audio/") && path.endsWith(".ogg"))
-        base.audio.stop();base.backend.play(path){}
+        base.audioPolicy.libraryRequest(path,true)?.let(base.audio::request)
     }
-    private fun taskVoice(task:UiTask,event:AudioEvent){val base=f?:return;base.audioPolicy.request(task.id,event,true)?.let(base.audio::request)}
-    private fun push(p:Page){stopAudio();stack.add(p);render()}
-    private fun replace(p:Page){stopAudio();if(stack.isNotEmpty())stack[stack.lastIndex]=p else stack.add(p);render()}
-    private fun back(){stopAudio();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)f?.parent?.close();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
-    private fun home(){stopAudio();f?.parent?.close();stack.clear();stack.add(Page("SCR-003"));f?.navigator?.go(Route.Home);render()}
+    private fun taskVoice(task:UiTask,event:AudioEvent){
+        val base=f?:return;val state=interaction?.takeIf{it.task.id==task.id}
+        base.audioPolicy.request(task.id,event,true,attempted=state?.attempted==true,verdict=state?.verdict)?.let(base.audio::request)
+    }
+    private fun leaveListening(){f?.listening?.leave();preludeOpenedFor=null;listeningFailed=false}
+    private fun depart(){if(f?.listening?.taskId!=null)leaveListening()else stopAudio();interaction?.discardTransient()}
+    private fun push(p:Page){depart();stack.add(p);render()}
+    private fun replace(p:Page){depart();if(stack.isNotEmpty())stack[stack.lastIndex]=p else stack.add(p);render()}
+    private fun back(){depart();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)f?.parent?.close();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
+    private fun home(){depart();interaction=null;gardenSelection=null;f?.parent?.close();stack.clear();stack.add(Page("SCR-003"));f?.navigator?.go(Route.Home);render()}
+    private fun controller(base:Foundation,t:UiTask):TaskInteraction{
+        interaction?.takeIf{it.task.id==t.id}?.let{return it}
+        val result=TaskInteraction(base.catalog,t)
+        base.progress.loadSession()?.takeIf{it.optional("task_id")==t.id}?.let{result.restoreFields(it)}
+        interaction=result;return result
+    }
+    private fun saveInteraction(state:TaskInteraction){
+        val base=f?:return
+        base.progress.saveSession(base.sessions.snapshotForTask(state.task.id)+state.saveFields())
+    }
+    private fun refreshTask(){
+        fun scrolls(v:View):List<android.widget.ScrollView> = if(v is android.widget.ScrollView)listOf(v) else if(v is android.view.ViewGroup)(0 until v.childCount).flatMap{scrolls(v.getChildAt(it))}else emptyList()
+        val positions=scrolls(window.decorView).map{it.scrollY};val before=page
+        render()
+        val now=scrolls(window.decorView)
+        now.forEachIndexed{i,sc->sc.post{if(page==before)sc.scrollTo(0,positions.getOrElse(i){0})}}
+    }
+    private fun changeResponse(state:TaskInteraction,change:()->Boolean){
+        if(page.ref!=state.task.id||!resumed||closed)return
+        if(change())try{saveInteraction(state);refreshTask()}catch(_:Exception){showError(page)}
+    }
+    private fun submitTask(base:Foundation,state:TaskInteraction){
+        if(page.ref!=state.task.id||!resumed||closed)return
+        val result=state.submit(base.listening.receipt(state.task.id))
+        if(result is Verdict.Completed){
+            try{base.progress.commit(result.ticket)}catch(_:Exception){state.discardVerdict();showError(page);return}
+        }
+        refreshTask()
+        when(result){is Verdict.Completed->taskVoice(state.task,AudioEvent.CORRECT);Verdict.Retry->taskVoice(state.task,AudioEvent.RETRY);else->Unit}
+    }
     private fun welcomeDone(){prefs.edit().putBoolean("welcome_seen",true).apply();home()}
     private fun openTask(id:String,restore:Boolean=false){
         val base=f?:return;val task=base.ui.tasks.getValue(id)
+        depart();interaction=null
         if(!restore){
             if(task.ready||task.prelude){base.navigator.go(Route.TaskRoute(id));base.progress.saveSession(base.sessions.snapshotForTask(id))}
             push(Page(task.screen,id))
         }else{
             val lesson=base.ui.lessonForTask(id);val topic=base.ui.topics.getValue(lesson.topic);val area=base.ui.areas.single{topic.card.id in it.topics}
             stack.clear();stack.addAll(listOf(Page("SCR-003"),Page("SCR-004",area.card.id),Page("SCR-005",topic.card.id),Page("SCR-006",lesson.card.id),Page("SCR-007",lesson.card.id),Page(task.screen,id)))
-            if(task.ready||task.prelude){base.navigator.go(Route.TaskRoute(id));base.progress.saveSession(base.sessions.snapshotForTask(id))};render()
+            if(task.ready||task.prelude){base.navigator.go(Route.TaskRoute(id));if(base.progress.loadSession()?.optional("task_id")!=id)base.progress.saveSession(base.sessions.snapshotForTask(id))};render()
         }
     }
     private fun nextWithoutReward(task:UiTask){
         val base=f?:return;val level=base.ui.levels.getValue(task.level);val next=level.tasks.getOrNull(level.tasks.indexOf(task.id)+1)
+        interaction=null
         if(next==null){replace(Page("SCR-021",task.level));return}
         val t=base.ui.tasks.getValue(next);if(t.ready||t.prelude){base.navigator.go(Route.TaskRoute(next));base.progress.saveSession(base.sessions.snapshotForTask(next))}
         replace(Page(t.screen,next))
@@ -320,11 +360,20 @@ class MainActivity : Activity() {
         })
     }
     private fun rewardScreen(base:Foundation,p:Page){val ui=base.ui;val rewards=earned(base,p.ref)
+        val level=ui.levels.getValue(p.ref)
+        val claimed=if(p.extra)level.tasks.getOrNull(p.index)?.let{task->base.progress.readableDatabase.rawQuery("SELECT item_id FROM reward_ledger WHERE task_id=? AND claimed=1",arrayOf(task)).use{c->if(c.moveToFirst())c.getString(0)else null}}else null
         frame(ui,p,"Quà của bé",{b->
-            if(rewards.isEmpty()){w.add(b,w.text("Chưa có quà mới",24,true))}
+            if(claimed!=null){
+                ui.screenArt(p.screen).firstOrNull{it.endsWith("0026.webp")}?.let{w.art(b,it,150,"Hộp quà đã mở")}
+                ui.rewardArt[claimed]?.let{w.art(b,it,180,"Vật phẩm của bé")}
+                heading(b,"Bé đã nhận quà!")
+                if(rewards.isNotEmpty())action(b,"Quà tiếp theo","teal",fn={replace(p.copy(index=0,extra=false))})
+            }else if(rewards.isEmpty()){w.add(b,w.text("Chưa có quà mới",24,true))}
             else {ui.screenArt(p.screen).firstOrNull{it.endsWith("0027.webp")}?.let{w.art(b,it,200,"Hộp quà chưa mở")}
-                // Presentation only. Claiming and new completion events remain in phase 6.3.
-                action(b,"Mở quà","teal",enabled=false)
+                action(b,"Mở quà","teal",fn={
+                    val entry=rewards.first()
+                    if(base.progress.claim(entry.task))replace(p.copy(index=level.tasks.indexOf(entry.task),extra=true))else refreshTask()
+                })
             }
             action(b,"Để sau","white",fn=::back);action(b,"Túi đồ","green",fn={push(Page("SCR-024"))})
         })
@@ -349,25 +398,59 @@ class MainActivity : Activity() {
                 action(b,"Hủy","white",adult=true,fn=::back)
                 action(b,"Tiếp tục xác nhận","peach",adult=true,fn={replace(p.copy(extra=true))})
             }else{
-                w.add(b,w.text("Xác nhận lần hai: thao tác không thể hoàn tác. Dữ liệu hiện vẫn được giữ nguyên.",18,center=false))
+                w.add(b,w.text("Xác nhận lần hai: thao tác không thể hoàn tác.",18,center=false))
                 action(b,"Hủy","white",adult=true,fn={replace(p.copy(extra=false))})
-                action(b,"Xác nhận đặt lại","peach",adult=true,enabled=false)
+                action(b,"Xác nhận đặt lại","peach",adult=true,fn={
+                    if(!base.parent.allowed()){home();return@action}
+                    base.progress.resetProgress();interaction=null;gardenUndo=null;gardenSelection=null;groupPages.clear();home()
+                })
             }
         })
     }
+    private data class GardenEntry(val task:String,val item:String,val x:Double?,val y:Double?)
+    private var gardenUndo:GardenEntry?=null
     private fun garden(base:Foundation,p:Page){val ui=base.ui
-        val items=mutableListOf<GardenWidgets.GardenItem>()
-        base.progress.readableDatabase.rawQuery("SELECT l.item_id,p.x,p.y FROM garden_placements p JOIN reward_ledger l ON l.task_id=p.task_id WHERE l.claimed=1 ORDER BY p.task_id",null).use{c->while(c.moveToNext()){
-            val x=c.getFloat(1);val y=c.getFloat(2);val art=ui.rewardArt[c.getString(0)]
-            if(art!=null&&x in 0f..1f&&y in 0f..1f)items.add(GardenWidgets.GardenItem(art,x,y))
+        val owned=mutableListOf<GardenEntry>()
+        base.progress.readableDatabase.rawQuery("SELECT l.task_id,l.item_id,p.x,p.y FROM reward_ledger l LEFT JOIN garden_placements p ON p.task_id=l.task_id WHERE l.claimed=1 ORDER BY l.task_id",null).use{c->while(c.moveToNext()){
+            owned.add(GardenEntry(c.getString(0),c.getString(1),if(c.isNull(2))null else c.getDouble(2),if(c.isNull(3))null else c.getDouble(3)))
         }}
+        val placed=owned.filter{it.x!=null&&it.y!=null};val available=owned.filter{it.x==null&&it.y==null}
+        val items=placed.mapNotNull{e->ui.rewardArt[e.item]?.let{GardenWidgets.GardenItem(it,e.x!!.toFloat(),e.y!!.toFloat())}}
+        val selected=available.firstOrNull{it.task==gardenSelection}
+        fun put(e:GardenEntry,x:Double,y:Double){
+            if(base.progress.place(e.task,x,y)){gardenUndo=e;gardenSelection=null;if(p.ref=="positions")replace(Page("SCR-023"))else refreshTask()}
+        }
         frame(ui,p,"Khu vườn của bé",{b->
-            ui.screenArt(p.screen).firstOrNull()?.let{w.add(b,w.gardenScene(it,items),8,300)}
-            w.add(b,w.text("Ngắm vườn",20,true))
-            action(b,"Túi đồ","teal",fn={push(Page("SCR-024"))})
-            // Placement controls remain inactive until the real 6.3 interaction is connected.
-            if(base.progress.inventoryBreakdown().any{it.inBag>0})action(b,"Đặt vật","white",enabled=false)
-            if(items.isNotEmpty())w.pair(b,w.button("Cất vật","white",enabled=false),w.button("Hoàn tác","white",enabled=false))
+            if(p.ref=="place"||p.ref=="away"){
+                val choosing=p.ref=="place";val list=if(choosing)available else placed
+                heading(b,if(choosing)"Chọn vật để đặt" else "Chọn vật để cất")
+                if(list.isEmpty())w.add(b,w.text("Không có vật phẩm",22))else paginated(list,w.viewport.pageSize(6),p,b){rows->
+                    w.grid(b,rows.mapIndexed{i,e->w.card(if(choosing)"Đặt vật ${i+1}" else "Cất vật ${i+1}",ui.rewardArt.getValue(e.item),"white",action=active{
+                        if(choosing){gardenSelection=e.task;replace(Page("SCR-023"))}
+                        else{base.progress.putAway(e.task);gardenUndo=e;replace(Page("SCR-023"))}
+                    })},2)
+                }
+                action(b,"Hủy","white",fn={gardenSelection=null;replace(Page("SCR-023"))})
+            }else{
+                val onPlace:((Double,Double)->Unit)?=selected?.let{e->{x,y->if(resumed&&!closed&&page.screen=="SCR-023")put(e,x,y)}}
+                ui.screenArt(p.screen).firstOrNull()?.let{w.add(b,w.gardenScene(it,items,onPlace),8,300)}
+                if(selected!=null){
+                    heading(b,"Chạm vào chỗ bé muốn đặt")
+                    // Equivalent accessible alternative to a precise pointer gesture.
+                    action(b,"Chọn vị trí bằng nút","white",fn={replace(Page("SCR-023","positions"))})
+                    if(p.ref=="positions"){
+                        val labels=listOf("Trên trái","Trên giữa","Trên phải","Giữa trái","Chính giữa","Giữa phải","Dưới trái","Dưới giữa","Dưới phải")
+                        w.grid(b,labels.mapIndexed{i,label->w.button(label,"white",action=active{put(selected,(i%3+0.5)/3,(i/3+0.5)/3)})},3,80)
+                    }
+                    action(b,"Hủy","white",fn={gardenSelection=null;replace(Page("SCR-023"))})
+                }else{
+                    w.add(b,w.text("Ngắm vườn",20,true))
+                    action(b,"Túi đồ","teal",fn={push(Page("SCR-024"))})
+                    if(available.isNotEmpty())action(b,"Đặt vật","white",fn={replace(Page("SCR-023","place"))})
+                    if(placed.isNotEmpty())action(b,"Cất vật","white",fn={replace(Page("SCR-023","away"))})
+                    if(gardenUndo!=null)action(b,"Hoàn tác","white",fn={gardenUndo?.let{e->if(e.x==null||e.y==null)base.progress.putAway(e.task)else base.progress.place(e.task,e.x,e.y);gardenUndo=null;refreshTask()}})
+                }
+            }
         })
     }
     private fun inventory(base:Foundation,p:Page){val ui=base.ui;val owned=base.progress.inventoryBreakdown();frame(ui,p,"Túi đồ",{b->
@@ -446,38 +529,64 @@ class MainActivity : Activity() {
         }
         action(b,"Quay lại","white",adult=true,fn=::back)
     })}
-    private fun taskScreen(base:Foundation,p:Page,t:UiTask){val ui=base.ui
-        if(t.prelude){frame(ui,p,"Nghe trước nhé!",{b->
-            w.taskColumns(b,{lead->
-                action(lead,"Nghe câu chuyện","teal",fn={taskVoice(t,AudioEvent.LISTEN)})
-                action(lead,"Dừng","white",fn=::stopAudio)
-            },{scene->t.preludeImage?.let{w.art(scene,it,if(w.taskSplit)180 else 240,"Cảnh mở đầu")}})
-            // No question is exposed until a real playback-complete event in 6.3.
-            action(b,"Tiếp tục","white",enabled=false)
-            w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",t.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(t)}))
-        },t.background);return}
+    private fun taskScreen(base:Foundation,p:Page,source:UiTask){val ui=base.ui;val state=controller(base,source)
+        if(source.prelude && base.listening.taskId!=source.id){base.listening.enter(source.id);preludeOpenedFor=null;listeningFailed=false}
+        if(source.prelude && (base.listening.receipt(source.id)==null||preludeOpenedFor!=source.id)){
+            frame(ui,p,"Nghe trước nhé!",{b->
+                w.taskColumns(b,{lead->
+                    action(lead,"Nghe câu chuyện","teal",fn={
+                        listeningFailed=false
+                        base.listening.start(source.id){ok->if(!closed&&resumed&&page.ref==source.id){listeningFailed=!ok;refreshTask()}}
+                        refreshTask()
+                    })
+                    action(lead,"Dừng","white",fn={base.listening.leave();base.listening.enter(source.id);listeningFailed=false;refreshTask()})
+                    if(listeningFailed)w.add(lead,w.text("Bé nghe lại nhé!",20))
+                    else if(base.audio.active)w.add(lead,w.text("Đang nghe",20))
+                },{scene->source.preludeImage?.let{w.art(scene,it,if(w.taskSplit)180 else 240,"Cảnh mở đầu")}})
+                action(b,"Tiếp tục","green",enabled=base.listening.receipt(source.id)!=null,fn={
+                    if(base.listening.receipt(source.id)!=null){preludeOpenedFor=source.id;refreshTask()}
+                })
+                w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",source.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(source)}))
+            },source.background);return
+        }
+        val t=if(source.prelude)source.copy(ready=true,groups=source.afterPrelude,prelude=false)else source
         if(!t.ready){frame(ui,p,"Bé chơi nhé!",{b->w.add(b,w.text("Bé chọn hoạt động khác nhé.",24,true));action(b,"Quay lại","white",fn=::back)});return}
         val level=ui.levels.getValue(t.level);val current=level.tasks.indexOf(t.id)+1
         frame(ui,p,"$current / ${level.tasks.size}",{b->
             w.taskColumns(b,{lead->
                 heading(lead,t.prompt)
                 if(w.taskSplit){action(lead,"Nghe lại","teal",fn={taskVoice(t,AudioEvent.PROMPT)});action(lead,"Dừng","white",fn=::stopAudio)}else w.pair(lead,w.button("Nghe lại","teal",action=active{taskVoice(t,AudioEvent.PROMPT)}),w.button("Dừng","white",action=active(::stopAudio)))
-                if(t.listen && t.groups.none{it.role=="listen_options"})action(lead,"Nghe mẫu","blue",fn={taskVoice(t,AudioEvent.LISTEN)})
-            },{scene->t.groups.forEachIndexed{index,g->renderGroup(scene,p,t,index,g,w.taskBoardDp)}})
-            // Render the source-specific controls without simulating 6.3 responses or reward events.
-            when(t.screen){
-                "SCR-061"->action(b,"Úp thẻ","white",enabled=false)
-                "SCR-062"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Làm lại bước","white",enabled=false))
-                "SCR-063"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Tẩy","white",enabled=false))
-                "SCR-064"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Chọn màu","white",enabled=false))
-                "SCR-068"->action(b,"Xem kết quả","white",enabled=false)
-                else->if(t.screen.removePrefix("SCR-").toInt() in 34..60)action(b,"Gợi ý","white",enabled=false)
+                if(t.listen && !source.prelude && t.groups.none{it.role=="listen_options"||it.role=="sources"&&it.items.any{e->e==UiElement.Speaker}})action(lead,"Nghe mẫu","blue",fn={taskVoice(t,AudioEvent.LISTEN)})
+            },{scene->t.groups.forEachIndexed{index,g->renderGroup(scene,p,t,index,g,w.taskBoardDp,state)}})
+            if(state.supported){
+                when(val v=state.verdict){
+                    is Verdict.Completed -> w.add(b,w.text(if(v.ticket.kind==CompletionKind.OPEN)"Cảm ơn bé đã tham gia!" else "Bé làm tốt lắm!",24,true))
+                    Verdict.Retry -> w.add(b,w.text("Bé thử thêm một lần nhé!",22,true))
+                    else->Unit
+                }
+                if(!state.finished){
+                    if(state.isMemory)action(b,"Úp thẻ","white",enabled=state.faceUpIds.size>state.matchedPairs.size*2,fn={changeResponse(state,state::closeFlipped)})
+                    else if(t.screen!="SCR-069")w.pair(b,w.button("Hoàn tác","white",action=active{changeResponse(state,state::undo)}),w.button("Làm lại","white",action=active{changeResponse(state,state::clear)}))
+                    if(state.type!="participation")action(b,"Gợi ý","white",enabled=state.attempted,fn={taskVoice(t,AudioEvent.HINT)})
+                    action(b,"Xong","teal",enabled=state.response()!=null,fn={submitTask(base,state)})
+                }else action(b,"Tiếp tục","teal",fn={nextWithoutReward(t)})
+            }else{
+                // Do not grant credit for an unwired mechanic. Its approved scene stays visible.
+                when(t.screen){
+                    "SCR-061"->action(b,"Úp thẻ","white",enabled=false)
+                    "SCR-062"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Làm lại bước","white",enabled=false))
+                    "SCR-063"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Tẩy","white",enabled=false))
+                    "SCR-064"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Chọn màu","white",enabled=false))
+                    "SCR-068"->action(b,"Xem kết quả","white",enabled=false)
+                    else->if(t.screen.removePrefix("SCR-").toInt() in 34..60)action(b,"Gợi ý","white",enabled=false)
+                }
+                if(t.screen!="SCR-061" && t.screen!="SCR-068")action(b,"Xong","white",enabled=false)
             }
-            if(t.screen!="SCR-061" && t.screen!="SCR-068")action(b,"Xong","white",enabled=false)
-            w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",t.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(t)}))
+            if(state.finished)action(b,"Nghỉ","white",fn={push(Page("SCR-019",t.id))})
+            else w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",t.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(t)}))
         },t.background)
     }
-    private fun renderGroup(b:LinearLayout,p:Page,t:UiTask,index:Int,g:UiGroup,availableDp:Int){
+    private fun renderGroup(b:LinearLayout,p:Page,t:UiTask,index:Int,g:UiGroup,availableDp:Int,state:TaskInteraction){
         val items=if(g.shuffle)g.items.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong()))else g.items
         if(g.role.startsWith("compare_")){
             // Same-size source art, quantity unchanged. Close/wide spacing differs, not scale.
@@ -489,14 +598,19 @@ class MainActivity : Activity() {
         val partitions=g.pageIndices(w.viewport)
         val chunks=partitions.mapIndexed{n,indices->
             val ordered=if(g.shuffle)indices.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong() xor (n.toLong() shl 32)))else indices
-            ordered.map{g.items[it]}
+            ordered
         }
         val pageIndex=(groupPages[key]?:0).coerceIn(0,chunks.lastIndex)
         val offset=partitions.take(pageIndex).sumOf{it.size}
         val context=g.role in setOf("context","trace","hotspot","workbench","board")
         val heading=when(g.role){"sources"->"Thẻ hình";"destinations"->"Nhóm ghép";"reserve"->"Bên ngoài";"workbench"->"Sân chơi";"palette"->"Chọn hình hoặc màu";"decorations"->"Họa tiết";"sequence_slots"->"Sắp xếp";"mix_sources"->"Màu để pha";"mix_result"->"Pha màu";"listen_options"->"Nghe từng mẫu";"sample_glyph"->"Chữ mẫu";else->null};heading?.let{w.add(b,w.text(it,18,true),8)}
-        val views=chunks[pageIndex].mapIndexed{i,e->
-            val label=when(g.role){"choices"->"Lựa chọn ${offset+i+1}";"memory"->"Thẻ ${i+1}";"sources"->"Thẻ nguồn ${i+1}";"destinations"->"Thẻ đích ${i+1}";"sample_glyph"->"Chữ mẫu";"word"->"Chữ ${(e as UiElement.Glyph).text}, vị trí ${offset+i+1}";else->"Tranh ${i+1}"}
+        val views=chunks[pageIndex].mapIndexed{i,sourceIndex->
+            val id=g.objectIds.getOrNull(sourceIndex)
+            val initial=g.items[sourceIndex]
+            val slot=if(state.isSequence && g.role in setOf("sequence_slots","pattern") && initial==UiElement.Blank)g.items.take(sourceIndex).count{it==UiElement.Blank}else -1
+            val filled=if(slot>=0)state.selectedIds.getOrNull(slot)?.let(state::chosenVisual)else null
+            val e=if(id!=null && g.role=="memory")state.memoryFace(id)?:initial else filled?:initial
+            val label=when(g.role){"choices"->"Lựa chọn ${offset+i+1}";"memory"->"Thẻ ${i+1}";"sources"->"Thẻ nguồn ${i+1}";"destinations"->"Thẻ đích ${i+1}";"sample_glyph"->"Chữ mẫu";"word"->"Chữ ${(e as UiElement.Glyph).text}, vị trí ${offset+i+1}";"direction_endpoints"->if(sourceIndex==0)"Bên trái" else "Bên phải";else->"Tranh ${i+1}"}
             val cell=w.column().apply{background=w.rounded("white");setPadding(w.dp(6),w.dp(6),w.dp(6),w.dp(6));minimumHeight=w.dp(64);contentDescription=label;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES}
             when(e){
                 is UiElement.Image->{
@@ -522,7 +636,22 @@ class MainActivity : Activity() {
                 is UiElement.Board->w.add(cell,w.outlineBoard(e.path,e.shapes),0,280)
                 UiElement.Speaker->w.art(cell,f!!.ui.icons.getValue("ICO-007"),72)
                 UiElement.Blank->if(g.role in setOf("workbench","sequence_slots","mix_result","direction_endpoints"))w.add(cell,View(this).apply{background=w.rounded("cream","edge",16);contentDescription="Ô trống"},0,if(g.role=="workbench")200 else 90)else w.add(cell,w.text("?",36,true),0)
-            };cell
+            }
+            if(id!=null && state.supported){
+                cell.tag=id
+                val marked=state.isSelected(id)||state.number(id)!=null||state.linkedNumbers(id).isNotEmpty()
+                if(marked){cell.background=w.rounded("blue","navy");cell.isSelected=true}
+                if(g.role=="direction_endpoints")w.add(cell,w.text(label,20,true),0)
+                if(state.isMemory&&id in state.faceUpIds && state.matchedPairs.any{id==it.first||id==it.second})w.add(cell,w.text("Đã ghép",18,true),0)
+                if(state.isPairing){
+                    state.number(id)?.let{w.add(cell,w.text("$it",22,true),0)}
+                    val labels=state.linkedNumbers(id);if(labels.isNotEmpty())w.add(cell,w.text(labels.joinToString(" · "),22,true),0)
+                }
+                if(state.canTap(g.role,id)){cell.isFocusable=true;cell.setOnClickListener{changeResponse(state){state.tap(g.role,id)}}}
+                val request=f!!.audioPolicy.objectRequest(t.id,id,true)
+                if(request!=null)w.add(cell,w.button("Nghe mẫu","white",action=active{f?.audio?.request(request)}),4)
+            }
+            cell
         }
         if(g.role=="word"){
             // One source line per group; spaces are layout, never selectable fake glyphs.
@@ -542,10 +671,10 @@ class MainActivity : Activity() {
         }else w.grid(b,views,if(context)1 else g.columns,if(t.screen=="SCR-044"&&g.items.any{it is UiElement.Glyph})120 else 100,availableDp)
         // Shared pair pages have one pager after both groups. Ordered trays that require a real commit remain locked until 6.3.
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
-        if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && !g.advanceRequiresCommit,action=active{groupPages[key]=pageIndex+1;stopAudio();render()}))}
+        if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && (!g.advanceRequiresCommit || if(g.role=="sequence_slots")state.selectedIds.size>=partitions.take(pageIndex+1).sumOf{it.size} else state.pageCommitted(partitions[pageIndex].mapNotNull{g.objectIds.getOrNull(it)})),action=active{groupPages[key]=pageIndex+1;stopAudio();refreshTask()}))}
     }
-    override fun onResume(){super.onResume();resumed=true;if(adultInvalidated){adultInvalidated=false;home()}}
-    override fun onPause(){resumed=false;stopAudio();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
+    override fun onResume(){super.onResume();resumed=true;if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
+    override fun onPause(){resumed=false;depart();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
     override fun onStop(){stopAudio();super.onStop()}
     override fun onDestroy(){closed=true;stopAudio();f?.progress?.close();f=null;if(::w.isInitialized)w.clear();super.onDestroy()}
     @Suppress("DEPRECATION") override fun onBackPressed(){if(stack.size>1)back()else super.onBackPressed()}

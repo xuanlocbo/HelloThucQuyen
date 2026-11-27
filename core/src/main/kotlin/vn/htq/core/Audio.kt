@@ -21,6 +21,22 @@ class TaskAudioPolicy(private val catalog: Catalog) {
         require(ids.size <= 64)
         return AudioRequest(ids.map { catalog.assetPath(it, "audio") })
     }
+    /** Explicit listening for an individual canonical object, not a hidden answer label. */
+    fun objectRequest(taskId:String,objectId:String,childRequested:Boolean):AudioRequest? {
+        if(!childRequested)return null
+        val task=catalog.tasks.getValue(taskId)
+        val o=task.o("scene").a("objects").map{it.obj()}.firstOrNull{it.optional("object_id")==objectId}?:return null
+        if(o.s("role")=="speaker")return request(taskId,AudioEvent.CHARACTER_DIALOGUE,true,objectId=o.optional("art_id"))
+        val a=task.o("audio")
+        val segments=a.a("stimulus_segments").map{it.obj().s("audio_id")}
+        val id=when(o.s("role")){
+            "audio_source" -> o.optional("audio_id")?.takeIf{it in segments}
+            "choice" -> o.optional("on_request_audio_id")?.takeIf{o.optional("audio_permission")=="explicit_choice_listen_only"&&it in segments}
+            "calendar_or_page" -> o.optional("on_request_audio_id")
+            else -> null
+        }?:return null
+        return AudioRequest(listOf(catalog.assetPath(id,"audio")))
+    }
     /** The caller supplies an already-approved non-task presentation asset. */
     fun libraryRequest(path: String, childRequested: Boolean): AudioRequest? =
         if(childRequested && path in catalog.paths && path.startsWith("audio/") && path.endsWith(".ogg")) AudioRequest(listOf(path)) else null
