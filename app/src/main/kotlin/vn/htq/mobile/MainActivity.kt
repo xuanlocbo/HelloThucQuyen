@@ -243,7 +243,7 @@ class MainActivity : Activity() {
     private fun englishCard(ui:UiContent,p:Page,phrases:Boolean){val list=if(phrases)ui.phrases.filter{it.lesson==p.ref}else ui.vocabulary.filter{it.lesson==p.ref && it.optional==p.extra}
         frame(ui,p,if(phrases)"Hello!" else "Nghe và học",{b->
             paginated(list,1,p,b){items->val c=items.single();c.images.firstOrNull()?.let{w.art(b,it,230,"Tranh tiếng Anh")};w.add(b,w.text(c.text,36,true));listen(b,c.audio,"Nghe tiếng Anh")
-                if(phrases && c.meaning!=null){if(p.extra)w.add(b,w.text(c.meaning,20))else action(b,"Xem nghĩa","white",fn={replace(p.copy(extra=true))})}
+                if(phrases)c.meaning?.let{meaning->if(p.extra)w.add(b,w.text(meaning,20))else action(b,"Xem nghĩa","white",fn={replace(p.copy(extra=true))})}
             }
             if(!phrases && ui.vocabulary.any{it.lesson==p.ref&&it.optional})action(b,if(p.extra)"Từ cơ bản" else "Mở rộng","white",fn={replace(p.copy(index=0,extra=!p.extra))})
         },fixedBackground(ui,p.screen))
