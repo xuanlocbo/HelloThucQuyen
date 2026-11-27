@@ -108,7 +108,10 @@ class UiSmokeTest {
             await("Bắt đầu")
             val welcomeReadyMs=SystemClock.elapsedRealtime()-launchAt
             tap("Bắt đầu")
-            assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh");shot("01-home");tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
+            assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
+            if(finalQa&&a.resources.configuration.screenWidthDp in 300..359&&a.resources.configuration.fontScale<1.15f)
+                ui.areas.forEach{assertFullyVisible(it.card.title)}
+            shot("01-home");tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
             await("Khu vườn");assertNull(find("6.1 - Native technical foundation"));assertNull(find("6.1 - Loading local content"))
             fun openTask(id:String){
                 val task=ui.tasks.getValue(id);val l=ui.lessons.getValue(task.lesson);val topic=ui.topics.getValue(l.topic)
@@ -146,7 +149,9 @@ class UiSmokeTest {
             val sourceRules=catalog.open("engine/v52/assessment_internal.json").bufferedReader().use{Json.parse(it.readText()).arr().map{v->v.obj()}.associateBy{it.s("task_id")}}
             val right=sourceRules.getValue(select.id).o("rule").s("accepted_id")
             val wrong=select.choiceSlots.first{it!=right}
-            openTask(select.id);shot("02-learning")
+            openTask(select.id)
+            if(finalQa)assertFullyVisible("Xong")
+            shot("02-learning")
             val before=completions(select.id)
             assertFalse(await("Xong").isEnabled);tapId(wrong);tap("Xong");await("Bé thử thêm một lần nhé!");assertEquals(before,completions(select.id))
             tapId(right);scenario.recreate();scenario.onActivity{a=it};await(select.prompt);assertTrue(await("Xong").isEnabled)
@@ -154,7 +159,9 @@ class UiSmokeTest {
             await("Về bài học");tap("Xem quà của bé");tap("Để sau");tap("Trang chủ")
             tap("Khu vườn");await("Xem quà của bé");tap("Túi đồ");tap("Xem quà của bé")
             scenario.recreate();scenario.onActivity{a=it};await("Mở quà")
-            tap("Mở quà");await("Bé đã nhận quà!");shot("03-reward");tap("Túi đồ");await("Trong túi: 1");assertNull(find("Xem quà của bé"));tap("Trang chủ")
+            tap("Mở quà");await("Bé đã nhận quà!")
+            if(finalQa)assertFullyVisible("Túi đồ")
+            shot("03-reward");tap("Túi đồ");await("Trong túi: 1");assertNull(find("Xem quà của bé"));tap("Trang chủ")
             tap("Khu vườn");tap("Đặt vật");tap("Đặt vật 1");tap("Chọn vị trí bằng nút");tap("Chính giữa")
             fun checkGardenPosition(x:Double,y:Double){
                 val store=LocalProgress(ctx,catalog)
@@ -232,7 +239,12 @@ class UiSmokeTest {
             fun preview(screen:String,ref:String="",label:String){
                 scenario.onActivity{a=it;push.invoke(it,pageCtor.newInstance(screen,ref,0,false))};i.waitForIdleSync()
                 await(label);if(screen!="SCR-033")assertNull("Rendering failed: $screen",find("Bé thử lại nhé!"))
-                when(screen){"SCR-010"->shot("07-vietnamese");"SCR-011"->shot("08-number");"SCR-013"->shot("09-english");"SCR-016"->shot("10-story")}
+                when(screen){
+                    "SCR-010"->{if(finalQa)assertFullyVisible("Nghe từ");shot("07-vietnamese")}
+                    "SCR-011"->{if(finalQa)assertFullyVisible("Nghe số");shot("08-number")}
+                    "SCR-013"->{if(finalQa)assertFullyVisible("Nghe tiếng Anh");shot("09-english")}
+                    "SCR-016"->{if(finalQa)assertFullyVisible("Nghe kể chuyện");shot("10-story")}
+                }
                 if(screen=="SCR-033")tap("Về nhà") else tap("Trang chủ")
             }
             val sampleLesson=ui.lessons.values.first{it.intro.isNotEmpty()};val sampleTopic=ui.topics.getValue(sampleLesson.topic)

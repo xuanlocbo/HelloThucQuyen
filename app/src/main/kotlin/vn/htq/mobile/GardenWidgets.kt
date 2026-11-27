@@ -125,7 +125,7 @@ internal class GardenWidgets(private val activity: Activity) {
     }
     data class GardenItem(val path:String,val x:Float,val y:Float)
     fun gardenScene(path:String,items:List<GardenItem>,onPlace:((Double,Double)->Unit)?=null):View=object:View(activity){
-        private val bg=bitmap(path);private val pictures=items.map{it.path}.distinct().associateWith(::bitmap);private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private val bg=bitmap(path);private val pictures=items.map{it.path}.distinct().associateWith(::decorativeBitmap);private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         private var downX=0f;private var downY=0f;private var moved=false
         private val slop=android.view.ViewConfiguration.get(activity).scaledTouchSlop
         override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return
@@ -154,6 +154,47 @@ internal class GardenWidgets(private val activity: Activity) {
         var sample=1;while(options.outWidth/sample>1280 || options.outHeight/sample>1280)sample*=2
         val decoded=activity.assets.open("htq/$path").use{BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply{inSampleSize=sample})}
         val result=requireNotNull(decoded);cache.put(path,result);return result
+    }
+    val compactPortrait get()=viewport.width<400 && viewport.height>=viewport.width
+    private fun decorativeBitmap(path:String):Bitmap{
+        val key="@decorative:$path"
+        cache.get(key)?.let{return it}
+        val src=bitmap(path)
+        if(!src.hasAlpha()){cache.put(key,src);return src}
+        var left=src.width;var top=src.height;var right=-1;var bottom=-1
+        val row=IntArray(src.width)
+        for(y in 0 until src.height){
+            src.getPixels(row,0,src.width,0,y,src.width,1)
+            for(x in row.indices)if(row[x] ushr 24 >= 16){
+                left=minOf(left,x);right=maxOf(right,x);top=minOf(top,y);bottom=maxOf(bottom,y)
+            }
+        }
+        if(right<left||bottom<top){cache.put(key,src);return src}
+        val margin=maxOf(2,maxOf(right-left+1,bottom-top+1)/25)
+        left=(left-margin).coerceAtLeast(0);top=(top-margin).coerceAtLeast(0)
+        right=(right+margin).coerceAtMost(src.width-1);bottom=(bottom+margin).coerceAtMost(src.height-1)
+        val cropped=if(left==0&&top==0&&right==src.width-1&&bottom==src.height-1)src
+            else Bitmap.createBitmap(src,left,top,right-left+1,bottom-top+1)
+        cache.put(key,cropped);return cropped
+    }
+    private fun decorativeImage(path:String,description:String?=null):ImageView=ImageView(activity).apply{
+        scaleType=ImageView.ScaleType.FIT_CENTER;setImageBitmap(decorativeBitmap(path));contentDescription=description
+        importantForAccessibility=if(description==null)View.IMPORTANT_FOR_ACCESSIBILITY_NO else View.IMPORTANT_FOR_ACCESSIBILITY_YES
+    }
+    fun decorativeArt(parent:LinearLayout,path:String,height:Int,description:String?=null){add(parent,decorativeImage(path,description),8,height)}
+    fun gardenHeight(path:String):Int{
+        val art=bitmap(path)
+        return (viewport.available.toFloat()*art.height/art.width).toInt().coerceIn(56,300)
+    }
+    fun homeCard(title:String,path:String,fill:String,action:()->Unit):LinearLayout=column().apply{
+        background=ripple(fill,"edge");minimumHeight=dp(ApprovedUi.preferredDp);setPadding(dp(6),dp(6),dp(6),dp(6))
+        isClickable=true;isFocusable=true;contentDescription=title;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        add(this,decorativeImage(path),0,if(compactPortrait)48 else if(viewport.wide)76 else 90)
+        add(this,text(title,20,true).apply{
+            if(compactPortrait){setPadding(0,0,0,0);setLineSpacing(0f,1f);minLines=2}
+            importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        },4)
+        setOnClickListener{action()}
     }
     fun image(path:String,description:String?=null):ImageView=ImageView(activity).apply{
         scaleType=ImageView.ScaleType.FIT_CENTER;adjustViewBounds=true;setImageBitmap(bitmap(path));contentDescription=description

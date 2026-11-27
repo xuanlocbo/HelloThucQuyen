@@ -298,7 +298,8 @@ class MainActivity : Activity() {
     }
     private fun frame(ui:UiContent,p:Page,heading:String,body:(LinearLayout)->Unit,background:String?=null,top:Boolean=true,footer:((LinearLayout)->Unit)?=null){
         val isHome=p.screen=="SCR-003";val isWelcome=p.screen=="SCR-002"
-        val backdrop=isHome || isWelcome || ui.tasks[p.ref]?.screen==p.screen
+        val backdrop=isHome || isWelcome || ui.tasks[p.ref]?.screen==p.screen ||
+            p.screen in setOf("SCR-008","SCR-010","SCR-011","SCR-013","SCR-014","SCR-016","SCR-017")
         mount(w.shell(heading,background,if(!isHome&&!isWelcome&&top)active(::back)else null,if(!isHome&&!isWelcome&&top)active(::home)else null,backdrop=backdrop,footer=footer){b->
             body(b)
             f?.let{base->menuMusic(base,p)?.let{path->w.pair(b,w.button("Nhạc nền","white",action=active{playNonTask(path)}),w.button("Dừng nhạc","white",action=active(::stopAudio)))}}
@@ -367,7 +368,7 @@ class MainActivity : Activity() {
             val perPage=when{w.viewport.wide->2;w.viewport.fontScale>=1.25f && w.viewport.width<400->4;else->6}
             paginated(ui.areas.map{it.card},perPage,p,b){cards->
                 val fills=listOf("green","blue","peach","lilac","yellow","white")
-                w.grid(b,cards.map{c->w.card(c.title,c.image,fills[ui.areas.indexOfFirst{it.card.id==c.id}],if(w.viewport.wide)76 else if(w.viewport.width<360)74 else 90,active{if(c.id=="AREA-04")push(Page("SCR-012"))else push(Page("SCR-004",c.id))})},2,112)
+                w.grid(b,cards.map{c->w.homeCard(c.title,c.image,fills[ui.areas.indexOfFirst{it.card.id==c.id}],active{if(c.id=="AREA-04")push(Page("SCR-012"))else push(Page("SCR-004",c.id))})},2,112)
             }
             val resume=runCatching{base.progress.loadSession()?.s("task_id")}.getOrNull()?.takeIf{it in ui.tasks}
             if(resume!=null)action(b,"Chơi tiếp","teal",fn={push(Page("SCR-020",resume))})
@@ -403,7 +404,7 @@ class MainActivity : Activity() {
     },fixedBackground(ui,p.screen))}
     private fun letterLibrary(ui:UiContent,p:Page){frame(ui,p,"Chữ cái",{b->paginated(ui.letters,w.viewport.pageSize(6),p,b){letters->w.grid(b,letters.map{l->w.card("${l.upper}  ${l.lower}",null,"white",action=active{push(Page("SCR-010",l.id))})},3,90)}},fixedBackground(ui,p.screen))}
     private fun letterDetail(ui:UiContent,p:Page){val l=ui.letters.single{it.id==p.ref};frame(ui,p,"Chữ cái",{b->
-        w.add(b,w.text("${l.upper}  ${l.lower}",80,true));l.images.lastOrNull()?.let{w.art(b,it,220,"Tranh liên tưởng")};heading(b,l.word);listen(b,l.audio,"Nghe từ")
+        w.add(b,w.text("${l.upper}  ${l.lower}",80,true));l.images.lastOrNull()?.let{w.art(b,it,if(w.compactPortrait)120 else 220,"Tranh liên tưởng")};heading(b,l.word);listen(b,l.audio,"Nghe từ")
         val i=ui.letters.indexOf(l);w.pair(b,w.button("Trước","white",enabled=i>0,action=active{replace(Page("SCR-010",ui.letters[i-1].id))}),w.button("Sau",enabled=i<ui.letters.lastIndex,action=active{replace(Page("SCR-010",ui.letters[i+1].id))}))
     },fixedBackground(ui,p.screen))}
     private fun numberCard(ui:UiContent,p:Page){frame(ui,p,"Bé học đếm",{b->paginated(ui.numbers,1,p,b){items->val n=items.single();w.add(b,w.text(n.number.toString(),84,true));heading(b,n.label)
@@ -412,14 +413,14 @@ class MainActivity : Activity() {
     private fun englishHome(ui:UiContent,p:Page){frame(ui,p,"Hello English",{b->paginated(ui.englishGroups,4,p,b){cards->w.grid(b,cardViews(cards){c->push(Page("SCR-006",c.id))},2)}},fixedBackground(ui,p.screen))}
     private fun englishCard(ui:UiContent,p:Page,phrases:Boolean){val list=if(phrases)ui.phrases.filter{it.lesson==p.ref}else ui.vocabulary.filter{it.lesson==p.ref && it.optional==p.extra}
         frame(ui,p,if(phrases)"Hello!" else "Nghe và học",{b->
-            paginated(list,1,p,b){items->val c=items.single();c.images.firstOrNull()?.let{w.art(b,it,230,"Tranh tiếng Anh")};w.add(b,w.text(c.text,if(phrases)36 else 44,true));listen(b,c.audio,"Nghe tiếng Anh")
+            paginated(list,1,p,b){items->val c=items.single();c.images.firstOrNull()?.let{w.art(b,it,if(w.compactPortrait)168 else 230,"Tranh tiếng Anh")};w.add(b,w.text(c.text,if(phrases)36 else 44,true));listen(b,c.audio,"Nghe tiếng Anh")
                 if(phrases)c.meaning?.let{meaning->if(p.extra)w.add(b,w.text(meaning,20))else action(b,"Xem nghĩa","white",fn={replace(p.copy(extra=true))})}
             }
             if(!phrases && ui.vocabulary.any{it.lesson==p.ref&&it.optional})action(b,if(p.extra)"Từ cơ bản" else "Mở rộng","white",fn={replace(p.copy(index=0,extra=!p.extra))})
         },fixedBackground(ui,p.screen))
     }
     private fun storyLibrary(ui:UiContent,p:Page){frame(ui,p,"Truyện, thơ và bài hát",{b->paginated(ui.stories.values.toList(),4,p,b){items->w.grid(b,items.map{s->w.card(s.title,s.scenes.first().image,if(s.language=="en")"blue" else "yellow",action=active{push(Page(s.screen,s.id))})},2)}},fixedBackground(ui,p.screen))}
-    private fun storyReader(ui:UiContent,p:Page){val s=ui.stories.getValue(p.ref);frame(ui,p,s.title,{b->paginated(s.scenes,1,p,b){items->val a=items.single();w.art(b,a.image,240,"Cảnh truyện");w.add(b,w.text(a.text,24));listen(b,a.audio,if(s.screen=="SCR-017")"Nghe đoạn này" else "Nghe kể chuyện")}},fixedBackground(ui,p.screen))}
+    private fun storyReader(ui:UiContent,p:Page){val s=ui.stories.getValue(p.ref);frame(ui,p,s.title,{b->paginated(s.scenes,1,p,b){items->val a=items.single();w.art(b,a.image,if(w.compactPortrait)176 else 240,"Cảnh truyện");w.add(b,w.text(a.text,24));listen(b,a.audio,if(s.screen=="SCR-017")"Nghe đoạn này" else "Nghe kể chuyện")}},fixedBackground(ui,p.screen))}
     private fun playLibrary(ui:UiContent,p:Page){val types=ApprovedUi.screens.filter{it.taskCount>0 && ui.tasks.values.any{t->t.screen==it.id&&(t.ready||t.prelude)}}
         frame(ui,p,"Bé vui chơi",{b->
             if(p.ref.isEmpty())paginated(types,4,p,b){items->w.grid(b,items.map{s->val first=ui.tasks.values.first{it.screen==s.id&&(it.ready||it.prelude)};w.card(ui.screenNames.getValue(s.id),ui.lessonForTask(first.id).card.image,"blue",action=active{push(Page("SCR-018",s.id))})},2)}
@@ -455,12 +456,12 @@ class MainActivity : Activity() {
         val claimed=if(p.extra)tasks.getOrNull(p.index)?.let(base.progress::claimedReward)else null
         frame(ui,p,"Quà của bé",{b->
             if(claimed!=null){
-                ui.screenArt(p.screen).firstOrNull{it.endsWith("0026.webp")}?.let{w.art(b,it,150,"Hộp quà đã mở")}
-                ui.rewardArt[claimed]?.let{w.art(b,it,180,"Vật phẩm của bé")}
+                ui.screenArt(p.screen).firstOrNull{it.endsWith("0026.webp")}?.let{w.decorativeArt(b,it,if(w.compactPortrait)96 else 150,"Hộp quà đã mở")}
+                ui.rewardArt[claimed]?.let{w.decorativeArt(b,it,if(w.compactPortrait)112 else 180,"Vật phẩm của bé")}
                 heading(b,"Bé đã nhận quà!")
                 if(rewards.isNotEmpty())action(b,"Quà tiếp theo","teal",fn={replace(p.copy(index=0,extra=false))})
             }else if(rewards.isEmpty()){w.add(b,w.text("Chưa có quà mới",24,true))}
-            else {ui.screenArt(p.screen).firstOrNull{it.endsWith("0027.webp")}?.let{w.art(b,it,200,"Hộp quà chưa mở")}
+            else {ui.screenArt(p.screen).firstOrNull{it.endsWith("0027.webp")}?.let{w.decorativeArt(b,it,if(w.compactPortrait)160 else 200,"Hộp quà chưa mở")}
                 action(b,"Mở quà","teal",fn={
                     val entry=rewards.first()
                     if(base.progress.claim(entry.task))replace(p.copy(index=tasks.indexOf(entry.task),extra=true))else refreshTask()
@@ -565,7 +566,7 @@ class MainActivity : Activity() {
                 action(b,"Hủy","white",fn={gardenSelection=null;replace(Page("SCR-023"))})
             }else{
                 val onPlace:((Double,Double)->Unit)?=selected?.let{e->{x,y->if(resumed&&!closed&&page==p)put(e,x,y)}}
-                ui.screenArt(p.screen).firstOrNull()?.let{w.add(b,w.gardenScene(it,items,onPlace),8,300)}
+                ui.screenArt(p.screen).firstOrNull()?.let{w.add(b,w.gardenScene(it,items,onPlace),8,w.gardenHeight(it))}
                 if(selected!=null){
                     heading(b,if(selected.x==null)"Chạm vào chỗ bé muốn đặt" else "Chạm vào vị trí mới")
                     // Equivalent accessible alternative to a precise pointer gesture.
@@ -697,6 +698,12 @@ class MainActivity : Activity() {
         val t=if(source.prelude)source.copy(ready=true,groups=source.afterPrelude,prelude=false)else source
         if(!t.ready){frame(ui,p,"Bé chơi nhé!",{b->w.add(b,w.text("Bé chọn hoạt động khác nhé.",24,true));action(b,"Quay lại","white",fn=::back)});return}
         val level=ui.levels.getValue(t.level);val current=level.tasks.indexOf(t.id)+1
+        val pinPrimary=w.compactPortrait&&state.supported
+        fun primary(b:LinearLayout){
+            if(state.finished)action(b,"Tiếp tục","teal",fn={nextWithoutReward(t)})
+            else action(b,"Xong","teal",enabled=state.response()!=null,fn={submitTask(base,state)})
+        }
+        val primaryFooter:((LinearLayout)->Unit)?=if(pinPrimary)({b->primary(b)})else null
         frame(ui,p,"$current / ${level.tasks.size}",{b->
             w.taskColumns(b,{lead->
                 heading(lead,t.prompt)
@@ -742,8 +749,8 @@ class MainActivity : Activity() {
                             w.button("Xóa","peach",action=active{clearConfirmationFor=null;changeResponse(state,state::clear)}))
                     }
                     if(state.type!="participation")action(b,"Gợi ý","white",enabled=state.attempted,fn={taskVoice(t,AudioEvent.HINT)})
-                    action(b,"Xong","teal",enabled=state.response()!=null,fn={submitTask(base,state)})
-                }else action(b,"Tiếp tục","teal",fn={nextWithoutReward(t)})
+                    if(!pinPrimary)primary(b)
+                }else if(!pinPrimary)primary(b)
             }else{
                 // Do not grant credit for an unwired mechanic. Its approved scene stays visible.
                 when(t.screen){
@@ -758,7 +765,7 @@ class MainActivity : Activity() {
             }
             if(state.finished)action(b,"Nghỉ","white",fn={push(Page("SCR-019",t.id))})
             else w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",t.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(t)}))
-        },t.background)
+        },t.background,footer=primaryFooter)
     }
     private fun renderGroup(b:LinearLayout,p:Page,t:UiTask,index:Int,g:UiGroup,availableDp:Int,state:TaskInteraction){
         val items=if(g.shuffle)g.items.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong()))else g.items
@@ -783,6 +790,9 @@ class MainActivity : Activity() {
         groupPages[key]=pageIndex
         val offset=partitions.take(pageIndex).sumOf{it.size}
         val context=g.role in setOf("context","trace","hotspot","workbench","board")
+        val compactLetterPair=w.compactPortrait&&t.screen=="SCR-044"&&g.pager=="paired"&&
+            g.columns==3&&g.items.all{it is UiElement.Image}&&availableDp>=276
+        val compactChoice=w.compactPortrait&&g.role=="choices"&&g.items.all{it is UiElement.Image}
         val heading=when(g.role){"sources"->"Thẻ hình";"destinations"->"Nhóm ghép";"reserve"->"Bên ngoài";"workbench"->"Sân chơi";"palette"->"Chọn hình hoặc màu";"decorations"->"Họa tiết";"sequence_slots"->"Sắp xếp";"mix_sources"->"Màu để pha";"mix_result"->"Pha màu";"listen_options"->"Nghe từng mẫu";"sample_glyph"->"Chữ mẫu";else->null};heading?.let{w.add(b,w.text(it,18,true),8)}
         val views=chunks[pageIndex].mapIndexed{i,sourceIndex->
             val id=g.objectIds.getOrNull(sourceIndex)
@@ -798,7 +808,7 @@ class MainActivity : Activity() {
                     if(g.role=="hotspot"){
                         w.add(cell,w.zoomArt(e.path,zoom),0,if(w.viewport.wide)220 else 320)
                         w.add(cell,w.button(if(zoom)"Thu nhỏ" else "Xem lớn","white",action=active{groupPages["zoom:$key"]=if(zoom)0 else 1;render()}))
-                    }else w.art(cell,e.path,if(context)220 else if(w.viewport.wide)96 else 120)
+                    }else w.art(cell,e.path,when{context->220;compactLetterPair->76;compactChoice||w.viewport.wide->96;else->120})
                 }
                 is UiElement.Glyph->w.add(cell,w.text(e.text,when{g.role=="sample_glyph"||t.screen=="SCR-044"->80;g.role=="word"->52;else->48},true),0)
                 is UiElement.Clock->w.add(cell,w.clock(e.hour),0,240)
@@ -848,7 +858,7 @@ class MainActivity : Activity() {
                 val cuts=listOf(0)+g.wordBreaks+listOf(views.size)
                 for(j in 0 until cuts.lastIndex)w.grid(b,views.subList(cuts[j],cuts[j+1]),cuts[j+1]-cuts[j],80,availableDp)
             }
-        }else w.grid(b,views,if(context)1 else g.columns,if(t.screen=="SCR-044"&&g.items.any{it is UiElement.Glyph})120 else 100,availableDp)
+        }else w.grid(b,views,if(context)1 else g.columns,if(compactLetterPair)84 else if(t.screen=="SCR-044"&&g.items.any{it is UiElement.Glyph})120 else 100,availableDp)
         // Shared pair pages have one pager after both groups. Ordered trays advance only after committed input.
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
         if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && committed(pageIndex),action=active{groupPages[key]=pageIndex+1;stopAudio();refreshTask()}))}
