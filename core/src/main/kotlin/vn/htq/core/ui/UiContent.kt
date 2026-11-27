@@ -62,7 +62,8 @@ data class ZoomWindow(val left:Float,val top:Float,val width:Float,val height:Fl
 }
 data class UiGroup(val role: String, val columns: Int, val items: List<UiElement>, val shuffle: Boolean,
                    val pageSizes: List<Int> = emptyList(), val objectIds: List<String> = emptyList(),
-                   val pager: String? = null, val advanceRequiresCommit: Boolean = false) {
+                   val pager: String? = null, val advanceRequiresCommit: Boolean = false,
+                   val wordBreaks: List<Int> = emptyList()) {
     init {
         require(items.isNotEmpty())
         require(pageSizes.isEmpty() || (pageSizes.all { it in 1..6 } && pageSizes.sum()==items.size))
@@ -70,11 +71,13 @@ data class UiGroup(val role: String, val columns: Int, val items: List<UiElement
         require(pageSizes.isEmpty() || objectIds.isNotEmpty())
         require(pager==null || (pager=="paired" && pageSizes.isNotEmpty()))
         require(!advanceRequiresCommit || pageSizes.isNotEmpty())
+        require(wordBreaks.isEmpty() || (role=="word" && wordBreaks==wordBreaks.distinct().sorted() && wordBreaks.all{it in 1 until items.size}))
+        if(role=="word")require(!shuffle && items.all{it is UiElement.Glyph} && objectIds.size==items.size)
     }
     /** Fixed source pages are partitioned before any within-page shuffle. */
     fun pageIndices(viewport:UiViewport):List<List<Int>> {
         if(pageSizes.isNotEmpty()){var at=0;return pageSizes.map{n->(at until at+n).toList().also{at+=n}}}
-        val maxItems=when(role){"pattern","context","countables","count_groups","reserve","sequence_slots","sources","destinations","bins","memory"->items.size;else->viewport.pageSize(6)}
+        val maxItems=when(role){"pattern","context","countables","count_groups","reserve","sequence_slots","sources","destinations","bins","memory","word"->items.size;else->viewport.pageSize(6)}
         return items.indices.toList().chunked(maxItems)
     }
 }
@@ -145,7 +148,8 @@ class UiContent private constructor(
                     else->error("Unsupported display element")
                 } }.also{require(it.isNotEmpty())},g.b("shuffle"),
                     g["pageSizes"]?.arr()?.map{n->(n as Number).toInt().also{require(n.toDouble()==it.toDouble())}} ?: emptyList(),
-                    g["objectIds"]?.arr()?.map{it.str()} ?: emptyList(),g.optional("pager"),g.b("advanceRequiresCommit")) }
+                    g["objectIds"]?.arr()?.map{it.str()} ?: emptyList(),g.optional("pager"),g.b("advanceRequiresCommit"),
+                    g["wordBreaks"]?.arr()?.map{n->(n as Number).toInt().also{require(n.toDouble()==it.toDouble())}} ?: emptyList()) }
                 val groups=parseGroups(o.a("groups"))
                 val after=parseGroups(o["afterPrelude"]?.arr() ?: emptyList())
                 for (set in listOf(groups,after)) {

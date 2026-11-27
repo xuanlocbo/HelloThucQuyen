@@ -287,7 +287,7 @@ class MainActivity : Activity() {
     private fun englishHome(ui:UiContent,p:Page){frame(ui,p,"Hello English",{b->paginated(ui.englishGroups,4,p,b){cards->w.grid(b,cardViews(cards){c->push(Page("SCR-006",c.id))},2)}},fixedBackground(ui,p.screen))}
     private fun englishCard(ui:UiContent,p:Page,phrases:Boolean){val list=if(phrases)ui.phrases.filter{it.lesson==p.ref}else ui.vocabulary.filter{it.lesson==p.ref && it.optional==p.extra}
         frame(ui,p,if(phrases)"Hello!" else "Nghe và học",{b->
-            paginated(list,1,p,b){items->val c=items.single();c.images.firstOrNull()?.let{w.art(b,it,230,"Tranh tiếng Anh")};w.add(b,w.text(c.text,36,true));listen(b,c.audio,"Nghe tiếng Anh")
+            paginated(list,1,p,b){items->val c=items.single();c.images.firstOrNull()?.let{w.art(b,it,230,"Tranh tiếng Anh")};w.add(b,w.text(c.text,if(phrases)36 else 44,true));listen(b,c.audio,"Nghe tiếng Anh")
                 if(phrases)c.meaning?.let{meaning->if(p.extra)w.add(b,w.text(meaning,20))else action(b,"Xem nghĩa","white",fn={replace(p.copy(extra=true))})}
             }
             if(!phrases && ui.vocabulary.any{it.lesson==p.ref&&it.optional})action(b,if(p.extra)"Từ cơ bản" else "Mở rộng","white",fn={replace(p.copy(index=0,extra=!p.extra))})
@@ -440,9 +440,9 @@ class MainActivity : Activity() {
         val pageIndex=(groupPages[key]?:0).coerceIn(0,chunks.lastIndex)
         val offset=partitions.take(pageIndex).sumOf{it.size}
         val context=g.role in setOf("context","trace","hotspot","workbench","board")
-        val heading=when(g.role){"sources"->"Thẻ hình";"destinations"->"Nhóm ghép";"reserve"->"Bên ngoài";"workbench"->"Sân chơi";"palette"->"Chọn hình hoặc màu";"decorations"->"Họa tiết";"sequence_slots"->"Sắp xếp";"mix_sources"->"Màu để pha";"mix_result"->"Pha màu";"listen_options"->"Nghe từng mẫu";else->null};heading?.let{w.add(b,w.text(it,18,true),8)}
+        val heading=when(g.role){"sources"->"Thẻ hình";"destinations"->"Nhóm ghép";"reserve"->"Bên ngoài";"workbench"->"Sân chơi";"palette"->"Chọn hình hoặc màu";"decorations"->"Họa tiết";"sequence_slots"->"Sắp xếp";"mix_sources"->"Màu để pha";"mix_result"->"Pha màu";"listen_options"->"Nghe từng mẫu";"sample_glyph"->"Chữ mẫu";else->null};heading?.let{w.add(b,w.text(it,18,true),8)}
         val views=chunks[pageIndex].mapIndexed{i,e->
-            val label=when(g.role){"choices"->"Lựa chọn ${offset+i+1}";"memory"->"Thẻ ${i+1}";"sources"->"Thẻ nguồn ${i+1}";"destinations"->"Thẻ đích ${i+1}";else->"Tranh ${i+1}"}
+            val label=when(g.role){"choices"->"Lựa chọn ${offset+i+1}";"memory"->"Thẻ ${i+1}";"sources"->"Thẻ nguồn ${i+1}";"destinations"->"Thẻ đích ${i+1}";"sample_glyph"->"Chữ mẫu";"word"->"Chữ ${(e as UiElement.Glyph).text}, vị trí ${offset+i+1}";else->"Tranh ${i+1}"}
             val cell=w.column().apply{background=w.rounded("white");setPadding(w.dp(6),w.dp(6),w.dp(6),w.dp(6));minimumHeight=w.dp(64);contentDescription=label;importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES}
             when(e){
                 is UiElement.Image->{
@@ -452,7 +452,7 @@ class MainActivity : Activity() {
                         w.add(cell,w.button(if(zoom)"Thu nhỏ" else "Xem lớn","white",action=active{groupPages["zoom:$key"]=if(zoom)0 else 1;render()}))
                     }else w.art(cell,e.path,if(context)220 else if(w.viewport.wide)96 else 120)
                 }
-                is UiElement.Glyph->w.add(cell,w.text(e.text,if(g.role=="word")52 else 48,true),0)
+                is UiElement.Glyph->w.add(cell,w.text(e.text,when{g.role=="sample_glyph"||t.screen=="SCR-044"->80;g.role=="word"->52;else->48},true),0)
                 is UiElement.Clock->w.add(cell,w.clock(e.hour),0,240)
                 is UiElement.Crop->w.add(cell,w.croppedImage(e.path,e.rect,e.mirror),0,if(context)220 else 120)
                 is UiElement.Count->w.add(cell,w.countedImage(e.path,e.count),0,120)
@@ -470,7 +470,22 @@ class MainActivity : Activity() {
                 UiElement.Blank->if(g.role in setOf("workbench","sequence_slots","mix_result","direction_endpoints"))w.add(cell,View(this).apply{background=w.rounded("cream","edge",16);contentDescription="Ô trống"},0,if(g.role=="workbench")200 else 90)else w.add(cell,w.text("?",36,true),0)
             };cell
         }
-        w.grid(b,views,if(context)1 else g.columns,if(g.role=="word")80 else 100,availableDp)
+        if(g.role=="word"){
+            // One source line per group; spaces are layout, never selectable fake glyphs.
+            val gap=ApprovedUi.gapDp
+            val needed=views.size*80+(views.size-1)*gap+g.wordBreaks.size*16
+            if(availableDp>=needed){
+                val line=w.row().apply{tag="htq_word_line"}
+                views.forEachIndexed{i,v->line.addView(v,LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1f).apply{
+                    if(i>0)marginStart=w.dp(gap+if(i in g.wordBreaks)16 else 0)
+                })}
+                w.add(b,line)
+            }else{
+                // If a narrow window cannot hold the full line, wrap at source spaces first.
+                val cuts=listOf(0)+g.wordBreaks+listOf(views.size)
+                for(j in 0 until cuts.lastIndex)w.grid(b,views.subList(cuts[j],cuts[j+1]),cuts[j+1]-cuts[j],80,availableDp)
+            }
+        }else w.grid(b,views,if(context)1 else g.columns,if(t.screen=="SCR-044"&&g.items.any{it is UiElement.Glyph})120 else 100,availableDp)
         // Shared pair pages have one pager after both groups. Ordered trays that require a real commit remain locked until 6.3.
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
         if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && !g.advanceRequiresCommit,action=active{groupPages[key]=pageIndex+1;stopAudio();render()}))}

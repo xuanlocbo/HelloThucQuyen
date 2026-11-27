@@ -159,27 +159,54 @@ class UiSmokeTest {
             }
             tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertFalse(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
             tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng");tap("Trang chủ")
-            // Render one source-selected task from every distinct task-screen template. This
-            // checks the native renderer, not scoring or end-to-end navigation for all 660 tasks.
+            // One final native rendering sweep of the locked task catalogue. Do not write
+            // sessions or simulate grading for these view-only checks. Navigation and
+            // persistence are exercised separately above by real user routes.
             val open=MainActivity::class.java.getDeclaredMethod("openTask",String::class.java,Boolean::class.javaPrimitiveType!!).apply{isAccessible=true}
+            val replace=MainActivity::class.java.getDeclaredMethod("replace",pageClass).apply{isAccessible=true}
             fun renderApprovedTask(t:UiTask){scenario.onActivity{a=it;open.invoke(it,t.id,true)};i.waitForIdleSync()}
-            val samples=ui.tasks.values.groupBy{it.screen}.values.map{group->group.firstOrNull{it.ready}?:group.first()}
-            assertEquals(36,samples.size)
-            for(t in samples){
-                renderApprovedTask(t)
-                if(t.prelude)await("Nghe trước nhé!") else await(t.prompt)
-                assertNull("Rendering failed for ${t.id}",find("Bé thử lại nhé!"))
-                assertFullyVisible("Trang chủ")
-                i.runOnMainSync{val d=a.resources.displayMetrics.density;for(v in walk(a.window.decorView).filter{it.isClickable&&it.isEnabled&&it.visibility==View.VISIBLE&&(it is Button||it is ImageButton||(it is LinearLayout&&it.contentDescription!=null))}){
-                    assertTrue("Narrow control ${t.id}: ${v.contentDescription}",v.width/d>=55.5f)
-                    assertTrue("Short control ${t.id}: ${v.contentDescription}",v.height/d>=55.5f)
-                }}
+            val rendered=mutableSetOf<String>();val coveredScreens=mutableSetOf<String>()
+            for(t in ui.tasks.values){
+                scenario.onActivity{a=it;replace.invoke(it,pageCtor.newInstance(t.screen,t.id,0,false))}
+                i.waitForIdleSync()
+                i.runOnMainSync{
+                    val views=walk(a.window.decorView).filter{it.visibility==View.VISIBLE}
+                    fun has(label:String)=views.any{(it is TextView&&it.text.toString()==label)||it.contentDescription?.toString()==label}
+                    assertFalse("Rendering failed for ${t.id}",has("Bé thử lại nhé!"))
+                    assertTrue("Missing task content for ${t.id}",has(if(t.prelude)"Nghe trước nhé!" else t.prompt))
+                    if(t.prelude){
+                        assertFalse("Question exposed before listening ${t.id}",has(t.prompt))
+                        val next=views.filterIsInstance<Button>().single{it.text.toString()=="Tiếp tục"}
+                        assertFalse("Unlocked prelude ${t.id}",next.isEnabled)
+                        assertFalse(has("Gợi ý"));assertFalse(has("Xong"))
+                    }
+                    val home=views.single{it is ImageButton&&it.contentDescription=="Trang chủ"};val bounds=Rect()
+                    assertTrue("Home offscreen ${t.id}",home.getGlobalVisibleRect(bounds)&&bounds.width()>=home.width-1&&bounds.height()>=home.height-1)
+                    val d=a.resources.displayMetrics.density
+                    for(v in views.filter{it is Button||it is ImageButton||(it.isClickable&&it.isEnabled&&it is LinearLayout&&it.contentDescription!=null)}){
+                        assertTrue("Narrow control ${t.id}: ${v.contentDescription}",v.width/d>=55.5f)
+                        assertTrue("Short control ${t.id}: ${v.contentDescription}",v.height/d>=55.5f)
+                    }
+                }
+                assertTrue(rendered.add(t.id));coveredScreens.add(t.screen)
             }
-            // All prelude tasks must remain locked without a playback-complete event.
-            for(t in ui.tasks.values.filter{it.prelude}){
-                renderApprovedTask(t);await("Nghe trước nhé!");assertFalse(await("Tiếp tục").isEnabled)
-                assertNull("Question exposed before listening ${t.id}",find(t.prompt))
-                assertNull(find("Gợi ý"));assertNull(find("Xong"))
+            assertEquals(ui.tasks.keys,rendered);assertEquals(36,coveredScreens.size)
+            android.util.Log.i("HTQ_UI_QA","NATIVE_RENDER_PASS tasks=${rendered.size} templates=${coveredScreens.size} preludeLocked=39")
+            // Source-provided samples remain separate; all glyphs in a word stay neutral.
+            for((id,glyph) in listOf("05.06-L1-Q01" to "M","05.06-L1-Q02" to "H","05.06-L2-Q01" to "Ô","05.06-L3-Q01" to "H")){
+                renderApprovedTask(ui.tasks.getValue(id));await("Chữ mẫu");await(glyph)
+                i.runOnMainSync{
+                    val samples=walk(a.window.decorView).filter{it is LinearLayout && it.contentDescription=="Chữ mẫu"};assertEquals(1,samples.size);assertTrue(walk(samples.single()).filterIsInstance<TextView>().any{it.text.toString()==glyph})
+                    val rows=walk(a.window.decorView).filter{it is LinearLayout && it.tag=="htq_word_line"}.map{it as LinearLayout}
+                    assertEquals(if(id=="05.06-L3-Q01")2 else 1,rows.size)
+                    if(id=="05.06-L2-Q01"){
+                        val row=rows.single();assertEquals(3,row.childCount)
+                        val extra=(row.getChildAt(1).layoutParams as LinearLayout.LayoutParams).marginStart
+                        val normal=(row.getChildAt(2).layoutParams as LinearLayout.LayoutParams).marginStart
+                        assertTrue("Source word gap missing",extra>normal)
+                    }
+                    for(row in rows)for(n in 0 until row.childCount){val v=row.getChildAt(n);val d=a.resources.displayMetrics.density;assertTrue(v.width/d>=55.5f&&v.height/d>=55.5f)}
+                }
             }
             val pairTask=ui.tasks.getValue("05.03-L2-Q02")
             renderApprovedTask(pairTask)

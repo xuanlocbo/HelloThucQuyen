@@ -18,6 +18,7 @@ def main():
         def rd(n): return json.loads(r.read(P+n))
         def sd(n): return json.loads(z.read(n))
         nav=rd('engine/v52/navigation.json'); tasks=rd('engine/v52/task_bindings.json'); choices=rd('engine/choice_index.json'); assets=rd('manifest/assets.json'); lessons=rd('content/lessons.json'); acts=rd('content/activities.json')
+        task_context=sd('build_spec/linkage_v52/task_source_context.json')
         source=sd('build_spec/source_metadata/stage_3_6/content_bindings.json'); specs=sd('build_spec/linkage_v52/ui_catalog.json'); layout=sd('build_spec/linkage_v52/layout_reference_metrics.json')
         entries=set(r.namelist()); by_choice={x['slot_id']:x for x in choices}; used=set()
         def path(p,kind=None):
@@ -288,6 +289,23 @@ def main():
                 assert shapes
                 groups.append(group([dict(kind='board',path=asset(s['canvas_art_id']),shapes=shapes)],'board',1))
                 role_group({'source'},'sources',3)
+            elif s.get('word_lines'):
+                # Keep each source line, character identity and intentional spaces. A
+                # separate sample is a stated stimulus, not a highlighted answer.
+                assert scr in ('SCR-040','SCR-059') and all(o['role']=='glyph' for o in objects),tid
+                import re
+                setup=task_context[tid]['source_visual_setup']
+                sample=re.search(r'(?:^Mẫu |mẫu )([A-ZÔĐ])(?:;| riêng\.)',setup)
+                if sample:groups.append(group([glyph(sample.group(1))],'sample_glyph',1))
+                for line_index,line in enumerate(s['word_lines']):
+                    letters=sorted((o for o in objects if o['word_index']==line_index),key=lambda o:o['character_index'])
+                    assert [(o['character_index'],o['glyph']) for o in letters]==[(i,c) for i,c in enumerate(line) if not c.isspace()],tid
+                    breaks=[i for i in range(1,len(letters)) if letters[i]['character_index']>letters[i-1]['character_index']+1]
+                    g=group([glyph(o['glyph']) for o in letters],'word',len(letters))
+                    g['objectIds']=[o['object_id'] for o in letters]
+                    if breaks:g['wordBreaks']=breaks
+                    groups.append(g)
+                assert sum(len(g['items']) for g in groups if g['role']=='word')==len(objects),tid
             elif scr in simple:
                 if s.get('source_context_reference') and not s.get('fixed_context_art_id'):
                     if tid in fixed_context:
@@ -354,8 +372,6 @@ def main():
             elif scr=='SCR-058':
                 assert all(o['role']=='number_tile' for o in objects)
                 groups.append(group([glyph(o['value']) for o in objects],'numbers',3))
-            elif scr=='SCR-059':
-                assert all(o['role']=='glyph' for o in objects);groups.append(group([glyph(o['glyph']) for o in objects],'word',3))
             elif scr=='SCR-061':
                 assert s['all_face_down'];assert all(o['role']=='memory_card' for o in objects)
                 # Face values never enter initial display projection.

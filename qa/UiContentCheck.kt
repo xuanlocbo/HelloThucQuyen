@@ -12,6 +12,21 @@ fun main(args: Array<String>) {
         val original=Json.parse(z.getInputStream(z.getEntry(p+"engine/v52/task_bindings.json")).bufferedReader().use{it.readText()}).arr().map{it.obj()}
         original.forEach{t->val a=c.tasks.getValue(t.s("task_id"));check(a.prompt==t.s("child_prompt") && a.lesson==t.s("lesson_id") && a.level==t.s("level_id") && a.screen==t.s("screen_id") && a.choiceSlots==t.strings("choice_slot_ids")); val gated=t.o("audio").a("story_before_question").isNotEmpty();check(a.prelude==gated);if(!a.ready)check(a.groups.isEmpty());check(a.afterPrelude.isNotEmpty()==gated)}
         check(c.tasks.size==660)
+        val sampleLetters=mapOf("05.06-L1-Q01" to "M","05.06-L1-Q02" to "H","05.06-L2-Q01" to "Ô","05.06-L3-Q01" to "H")
+        for(t in original.filter{it.o("scene")["word_lines"]!=null}){
+            val id=t.s("task_id");val scene=t.o("scene");val groups=c.tasks.getValue(id).groups
+            val sample=sampleLetters[id]
+            check(groups.filter{it.role=="sample_glyph"}.flatMap{it.items}==(sample?.let{listOf<UiElement>(UiElement.Glyph(it))}?:emptyList<UiElement>()))
+            val lines=scene.strings("word_lines");val words=groups.filter{it.role=="word"};check(words.size==lines.size)
+            val objects=scene.a("objects").map{it.obj()}
+            for((n,line) in lines.withIndex()){
+                val g=words[n];val source=objects.filter{it.n("word_index")==n}.sortedBy{it.n("character_index")}
+                check(g.objectIds==source.map{it.s("object_id")} && !g.shuffle)
+                check(g.items==line.filterNot{it.isWhitespace()}.map{UiElement.Glyph(it.toString())})
+                check(g.wordBreaks==(1 until source.size).filter{source[it].n("character_index")>source[it-1].n("character_index")+1})
+            }
+        }
+        check(c.tasks.values.count{t->t.groups.any{it.role=="sample_glyph"}}==4)
         check(c.tasks.values.flatMap{it.choiceSlots}.size==816)
         val keys=setOf("accepted_id","accepted_ids","accepted_sequences","correct_answer","evaluation_ref","context_candidates","feedback_after_response_id","hint_on_request_id","source_context_reference","back_art_id")
         fun noLeak(v:Any?) {when(v){is Map<*,*>->{check(v.keys.none{it in keys});v.values.forEach(::noLeak)};is List<*>->v.forEach(::noLeak)}}
