@@ -36,12 +36,57 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          sdk="$ANDROID_SDK_ROOT"
+          emu="$sdk/emulator/emulator"
+          adb="$sdk/platform-tools/adb"
+          export PATH="$sdk/emulator:$sdk/platform-tools:$PATH"
+          test -x "$emu"
+          test -x "$adb"
           sudo chmod a+rw /dev/kvm
+          "$emu" -version
+          "$emu" -accel-check
+          df -h "$HOME" "$RUNNER_TEMP"
           echo no | avdmanager create avd --force -n htq_ci -k 'system-images;android-35;google_apis;x86_64'
-          emulator -avd htq_ci -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > "$RUNNER_TEMP/htq-emulator.log" 2>&1 &
-          trap 'adb emu kill || true' EXIT
-          timeout 360 adb wait-for-device
-          timeout 360 bash -c 'until [[ "$(adb shell getprop sys.boot_completed | tr -d "\r")" == 1 ]]; do sleep 5; done'
-          adb shell input keyevent 82
+          avdmanager list avd
+          "$adb" start-server
+          log="$RUNNER_TEMP/htq-emulator.log"
+          serial=emulator-5554
+          "$emu" -avd htq_ci -port 5554 -no-window -noaudio -no-boot-anim -gpu swiftshader -feature -Vulkan -no-snapshot -camera-back none -camera-front none -cores 2 -memory 2048 -partition-size 2048 > "$log" 2>&1 &
+          emu_pid=$!
+          cleanup() {
+            rc=$?
+            trap - EXIT
+            set +e
+            if (( rc != 0 )); then
+              echo '::group::Emulator diagnostics'
+              "$adb" devices -l
+              tail -n 250 "$log"
+              timeout 15 "$adb" -s "$serial" logcat -d -t 300
+              echo '::endgroup::'
+            fi
+            timeout 15 "$adb" -s "$serial" emu kill >/dev/null 2>&1
+            kill "$emu_pid" 2>/dev/null
+            exit "$rc"
+          }
+          trap cleanup EXIT
+          deadline=$((SECONDS + 600))
+          while true; do
+            if ! kill -0 "$emu_pid" 2>/dev/null; then
+              echo '::error::Android emulator exited before boot'
+              exit 1
+            fi
+            boot=$(timeout 10 "$adb" -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
+            if [[ "$boot" == 1 ]] && timeout 10 "$adb" -s "$serial" shell pm path android >/dev/null 2>&1; then break; fi
+            if (( SECONDS >= deadline )); then
+              echo '::error::Android emulator did not complete boot within 600 seconds'
+              exit 1
+            fi
+            sleep 5
+          done
+          "$adb" -s "$serial" shell input keyevent 82
+          "$adb" -s "$serial" shell settings put global window_animation_scale 0
+          "$adb" -s "$serial" shell settings put global transition_animation_scale 0
+          "$adb" -s "$serial" shell settings put global animator_duration_scale 0
+          "$adb" devices -l
           gradle --no-daemon :app:connectedDebugAndroidTest
       # No public releases or APK artifact uploads while release_ready=false.
