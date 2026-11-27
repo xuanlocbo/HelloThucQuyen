@@ -100,7 +100,7 @@ class UiSmokeTest {
                 }
             }
             fun shot(name:String){
-                if(!finalQa||homeQa&&name !in setOf("01-home","14-home-tablet","15-home-landscape"))return
+                if(!finalQa||homeQa&&name !in setOf("01-home","14-home-tablet","15-home-landscape","16-home-hd"))return
                 require(name.matches(Regex("[a-z0-9-]+")))
                 i.waitForIdleSync();SystemClock.sleep(200)
                 val output=qaShell("screencap -p /data/local/tmp/htq-qa/$name.png")
@@ -112,6 +112,54 @@ class UiSmokeTest {
             assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
             if(finalQa&&a.resources.configuration.screenWidthDp in 300..359&&a.resources.configuration.fontScale<1.15f)
                 ui.areas.forEach{assertFullyVisible(it.card.title)}
+            // Compare actual displayed pixels, not the input file or an enlarged mockup.
+            // The expected value is the integral of the original artwork over each
+            // sampled display pixel. Allow small color conversion/rounding differences.
+            fun checkHomePixels(){
+                i.waitForIdleSync()
+                val rect=Rect()
+                i.runOnMainSync{
+                    val poster=walk(a.window.decorView).single{it.contentDescription=="Hello Thục Quyên"&&it.tag is Rect}
+                    rect.set(poster.tag as Rect)
+                    val xy=IntArray(2);poster.getLocationOnScreen(xy);rect.offset(xy[0],xy[1])
+                }
+                val source=ctx.assets.open("htq_home/approved.webp").use{android.graphics.BitmapFactory.decodeStream(it)}
+                val screen=requireNotNull(i.uiAutomation.takeScreenshot())
+                try{
+                    assertTrue(rect.width()>0&&rect.height()>0)
+                    assertTrue(rect.left>=0&&rect.top>=0&&rect.right<=screen.width&&rect.bottom<=screen.height)
+                    // This check targets the original low-resolution portrait case.
+                    assertTrue(rect.width()<source.width&&rect.height()<source.height)
+                    var total=0.0;var count=0
+                    for(y in 2 until rect.height()-2 step 4)for(x in 2 until rect.width()-2 step 4){
+                        val l=x.toDouble()*source.width/rect.width()
+                        val r=(x+1.0)*source.width/rect.width()
+                        val t=y.toDouble()*source.height/rect.height()
+                        val b=(y+1.0)*source.height/rect.height()
+                        var red=0.0;var green=0.0;var blue=0.0
+                        for(sy in t.toInt() until kotlin.math.ceil(b).toInt()){
+                            for(sx in l.toInt() until kotlin.math.ceil(r).toInt()){
+                                val weight=(minOf(r,sx+1.0)-maxOf(l,sx.toDouble()))*
+                                    (minOf(b,sy+1.0)-maxOf(t,sy.toDouble()))
+                                val c=source.getPixel(sx,sy)
+                                red+=android.graphics.Color.red(c)*weight
+                                green+=android.graphics.Color.green(c)*weight
+                                blue+=android.graphics.Color.blue(c)*weight
+                            }
+                        }
+                        val area=(r-l)*(b-t)
+                        val p=screen.getPixel(rect.left+x,rect.top+y)
+                        total+=kotlin.math.abs(android.graphics.Color.red(p)-red/area)+
+                            kotlin.math.abs(android.graphics.Color.green(p)-green/area)+
+                            kotlin.math.abs(android.graphics.Color.blue(p)-blue/area)
+                        count+=3
+                    }
+                    val mae=total/count
+                    assertTrue("Home display differs from anti-aliased source: $mae",mae<=2.5)
+                    android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_PIXEL_PASS mae=$mae samples=$count")
+                }finally{screen.recycle();source.recycle()}
+            }
+            if(homeQa&&a.resources.configuration.screenWidthDp in 300..359&&a.resources.displayMetrics.densityDpi<=160)checkHomePixels()
             shot("01-home")
             if(homeQa){
                 // Dispatch actual screen coordinates to prove all artwork controls have the
@@ -504,6 +552,27 @@ class UiSmokeTest {
                         ui.areas.forEach{await(it.card.title,true)}
                         shot("14-home-tablet")
                         android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_ADAPTIVE_PASS landscape=true tablet_large_text=true")
+                        // Reuse the same emulator; take one true 1080p fresh-home
+                        // screenshot. The isolated QA database is discarded anyway.
+                        val qaStore=LocalProgress(ctx,catalog)
+                        try{qaStore.resetProgress()}finally{qaStore.close()}
+                        shell("settings put system font_scale 1.0")
+                        shell("wm size 1080x1920");shell("wm density 480")
+                        val deadline=SystemClock.elapsedRealtime()+30000
+                        var ready=false
+                        do{
+                            scenario.onActivity{a=it};i.waitForIdleSync()
+                            val c=a.resources.configuration
+                            if(c.orientation==Configuration.ORIENTATION_PORTRAIT&&c.densityDpi==480&&c.screenWidthDp in 350..370&&c.fontScale<1.15f&&find("Khu vườn",true)!=null&&find("Chơi tiếp")==null){
+                                ready=true;break
+                            }
+                            SystemClock.sleep(100)
+                        }while(SystemClock.elapsedRealtime()<deadline)
+                        assertTrue("1080p home configuration not ready: ${a.resources.configuration}",ready)
+                        ui.areas.forEach{assertFullyVisible(it.card.title)}
+                        assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
+                        shot("16-home-hd")
+                        android.util.Log.i("HTQ_UI_QA","APPROVED_HOME_HD_PASS resolution=1080x1920")
                     }
                 }finally{
                     shell(if(oldSize==null)"wm size reset" else "wm size $oldSize")

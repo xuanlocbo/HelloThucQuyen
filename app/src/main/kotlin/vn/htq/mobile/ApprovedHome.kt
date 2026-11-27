@@ -8,11 +8,10 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
-import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
-import android.view.Gravity
+import android.util.LruCache
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -26,8 +25,8 @@ internal data class HomeAction(val id:String,val label:String,val open:()->Unit)
 /**
  * The user-approved SCR-003 composition, not a regenerated mockup.
  * Art is loaded once per Activity, outside the locked learning catalog.
- * Eight actual native buttons draw individual artwork regions and use their
- * existing navigation callbacks. Nothing in the lesson renderer is changed.
+ * The portrait poster is rendered exactly once, with native clickable regions
+ * on top. Reflowed variants use the same artwork. Nothing in the lesson renderer changes.
  */
 internal class ApprovedHome(private val activity:Activity) {
     private val art by lazy {
@@ -50,6 +49,48 @@ internal class ApprovedHome(private val activity:Activity) {
     private fun crop(key:String,box:Rect)=bitmaps.getOrPut(key){
         Bitmap.createBitmap(art,box.left,box.top,box.width(),box.height())
     }
+    // Cache at final physical-pixel dimensions. Downsampling by a single
+    // GPU bilinear tap loses detail when the ratio is about 3:1 on small displays.
+    // Coverage-weighted area averaging removes that aliasing without changing art.
+    private val scaled=object:LruCache<String,Bitmap>(12*1024*1024){
+        override fun sizeOf(key:String,value:Bitmap):Int=value.byteCount
+    }
+    private fun smooth(source:Bitmap,key:String,width:Int,height:Int):Bitmap{
+        if(source.width==width&&source.height==height)return source
+        val cacheKey="$key:$width:$height"
+        scaled.get(cacheKey)?.let{return it}
+        val sw=source.width;val sh=source.height
+        val result=if(width>=sw||height>=sh){
+            Bitmap.createScaledBitmap(source,width,height,true)
+        }else{
+            val pixels=IntArray(sw*sh);source.getPixels(pixels,0,sw,0,0,sw,sh)
+            val output=IntArray(width*height)
+            val area=sw.toLong()*sh
+            for(y in 0 until height){
+                val y0=y*sh;val y1=(y+1)*sh
+                for(x in 0 until width){
+                    val x0=x*sw;val x1=(x+1)*sw
+                    var red=0L;var green=0L;var blue=0L
+                    for(sy in y0/height..(y1-1)/height){
+                        val wy=minOf(y1,(sy+1)*height)-maxOf(y0,sy*height)
+                        for(sx in x0/width..(x1-1)/width){
+                            val wx=minOf(x1,(sx+1)*width)-maxOf(x0,sx*width)
+                            val weight=wx.toLong()*wy
+                            val c=pixels[sy*sw+sx]
+                            red+=((c ushr 16) and 255)*weight
+                            green+=((c ushr 8) and 255)*weight
+                            blue+=(c and 255)*weight
+                        }
+                    }
+                    output[y*width+x]=Color.rgb(((red+area/2)/area).toInt(),((green+area/2)/area).toInt(),((blue+area/2)/area).toInt())
+                }
+            }
+            Bitmap.createBitmap(output,width,height,Bitmap.Config.ARGB_8888)
+        }
+        result.density=Bitmap.DENSITY_NONE
+        scaled.put(cacheKey,result)
+        return result
+    }
     private fun highlight(w:GardenWidgets):android.graphics.drawable.Drawable {
         fun shape(fill:Int,stroke:Int=0)=GradientDrawable().apply{
             setColor(fill);cornerRadius=w.dp(22).toFloat()
@@ -62,9 +103,21 @@ internal class ApprovedHome(private val activity:Activity) {
         }
         return if(w.reducedMotion)focus else RippleDrawable(ColorStateList.valueOf(0x4424664F),focus,shape(Color.WHITE))
     }
-    private fun imageButton(w:GardenWidgets,a:HomeAction,fit:ImageView.ScaleType)=ImageButton(activity).apply{
-        val tile=tiles.getValue(a.id)
-        setImageBitmap(crop(a.id,tile.box));scaleType=fit
+    private fun imageButton(w:GardenWidgets,a:HomeAction,paintArt:Boolean=true)=object:ImageButton(activity){
+        override fun onDraw(canvas:Canvas){
+            if(paintArt&&width>0&&height>0){
+                val source=crop(a.id,tiles.getValue(a.id).box)
+                val ratio=minOf(width.toDouble()/source.width,height.toDouble()/source.height)
+                val dw=(source.width*ratio).roundToInt().coerceIn(1,width)
+                val dh=(source.height*ratio).roundToInt().coerceIn(1,height)
+                val x=(width-dw)/2;val y=(height-dh)/2
+                canvas.drawBitmap(smooth(source,a.id,dw,dh),null,Rect(x,y,x+dw,y+dh),null)
+            }
+            // The portrait button has no duplicate bitmap. Its foreground
+            // retains the focus/press highlight and Android accessibility.
+        }
+    }.apply{
+        scaleType=ImageView.ScaleType.CENTER
         background=null;imageTintList=null;setPadding(0,0,0,0)
         foreground=highlight(w);contentDescription=a.label
         tag="htq_home:"+a.id
@@ -119,7 +172,7 @@ internal class ApprovedHome(private val activity:Activity) {
                 setImageBitmap(crop("header",Rect(0,0,941,503)));scaleType=ImageView.ScaleType.FIT_CENTER
                 contentDescription="Hello Thục Quyên"
             },0,if(w.viewport.width>w.viewport.height)112 else 188)
-            val views=actions.take(6).map{a->if(large)artworkCard(w,a)else imageButton(w,a,ImageView.ScaleType.FIT_CENTER)}
+            val views=actions.take(6).map{a->if(large)artworkCard(w,a)else imageButton(w,a)}
             // Non-large reflow uses measured image tiles, not their intrinsic pixel size.
             if(large)w.grid(body,views,2,120)
             else{
@@ -135,7 +188,7 @@ internal class ApprovedHome(private val activity:Activity) {
                 w.pair(bottom,w.button(actions[6].label,"green",action=actions[6].open),w.button(actions[7].label,"lilac",adult=true,action=actions[7].open))
             }else{
                 val row=w.row()
-                actions.drop(6).forEachIndexed{n,a->row.addView(imageButton(w,a,ImageView.ScaleType.FIT_CENTER),
+                actions.drop(6).forEachIndexed{n,a->row.addView(imageButton(w,a),
                     LinearLayout.LayoutParams(0,w.dp(66),1f).apply{if(n>0)marginStart=w.dp(8)})}
                 w.add(bottom,row,4)
             }
@@ -155,7 +208,9 @@ internal class ApprovedHome(private val activity:Activity) {
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         init{
             setWillNotDraw(false)
-            actions.forEach{addView(imageButton(w,it,ImageView.ScaleType.FIT_XY))}
+            actions.forEach{addView(imageButton(w,it,paintArt=false))}
+            // The live rectangle is also used by the pixel-fidelity check.
+            tag=picture
             contentDescription="Hello Thục Quyên"
             importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
@@ -184,7 +239,11 @@ internal class ApprovedHome(private val activity:Activity) {
             bounds.forEachIndexed{n,q->getChildAt(n).layout(q.left,q.top,q.right,q.bottom)}
         }
         override fun onDraw(canvas:Canvas){
-            super.onDraw(canvas);canvas.drawBitmap(art,null,RectF(picture),paint)
+            super.onDraw(canvas)
+            if(picture.width()>0&&picture.height()>0){
+                val frame=smooth(art,"poster",picture.width(),picture.height())
+                canvas.drawBitmap(frame,null,picture,paint)
+            }
         }
     }
 }

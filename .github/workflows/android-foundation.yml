@@ -191,7 +191,7 @@ jobs:
             python3 - "$qa/screens" "$home_qa" <<'PY'
           import pathlib, struct, sys
           folder = pathlib.Path(sys.argv[1])
-          names = ["01-home", "14-home-tablet", "15-home-landscape"] if sys.argv[2] == "true" else ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
+          names = ["01-home", "14-home-tablet", "15-home-landscape", "16-home-hd"] if sys.argv[2] == "true" else ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
           for name in names:
               f = folder / (name + ".png")
               with f.open("rb") as stream:
@@ -199,6 +199,8 @@ jobs:
               assert header[:8] == b"\x89PNG\r\n\x1a\n" and header[12:16] == b"IHDR", name
               width, height = struct.unpack(">II", header[16:24])
               assert width >= 240 and height >= 240, (name, width, height)
+              if name == "16-home-hd":
+                  assert (width, height) == (1080, 1920), (name, width, height)
               print("HTQ_SCREENSHOT", name, width, height, f.stat().st_size)
           print("HTQ_FINAL_SCREENSHOTS_PASS", len(names))
           PY
@@ -209,6 +211,8 @@ jobs:
             if [[ "$home_qa" == "true" ]]; then
               grep -F APPROVED_HOME_ROUTE_PASS "$qa/native-qa.log"
               grep -F APPROVED_HOME_ADAPTIVE_PASS "$qa/native-qa.log"
+              grep -F APPROVED_HOME_PIXEL_PASS "$qa/native-qa.log"
+              grep -F APPROVED_HOME_HD_PASS "$qa/native-qa.log"
             fi
           else
             gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest
