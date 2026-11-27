@@ -30,6 +30,16 @@ import vn.htq.core.ui.*
 class UiSmokeTest {
     @Test fun launchAndMeasureNativeViews() {
         val i=InstrumentationRegistry.getInstrumentation();val ctx=i.targetContext
+        val finalQa=InstrumentationRegistry.getArguments().getString("htqFinalQa")=="true"
+        fun qaShell(command:String):String=ParcelFileDescriptor.AutoCloseInputStream(i.uiAutomation.executeShellCommand(command)).bufferedReader().use{it.readText().trim()}
+        if(finalQa){
+            assertEquals("1",qaShell("settings get global airplane_mode_on"))
+            @Suppress("DEPRECATION")
+            val permissions=ctx.packageManager.getPackageInfo(ctx.packageName,android.content.pm.PackageManager.GET_PERMISSIONS).requestedPermissions.orEmpty().toSet()
+            val forbidden=setOf("android.permission.INTERNET","android.permission.ACCESS_NETWORK_STATE","android.permission.CAMERA","android.permission.RECORD_AUDIO","android.permission.ACCESS_FINE_LOCATION","android.permission.ACCESS_COARSE_LOCATION","com.android.vending.BILLING","com.google.android.gms.permission.AD_ID")
+            assertTrue("Unexpected permission: ${permissions.intersect(forbidden)}",permissions.intersect(forbidden).isEmpty())
+            android.util.Log.i("HTQ_UI_QA","FINAL_OFFLINE_PASS airplane=on forbidden_permissions=none")
+        }
         val catalog=Catalog.load(object:AssetSource{override fun open(relative:String)=ctx.assets.open("htq/"+canonicalPath(relative))})
         val ui=ctx.assets.open("htq_ui/content.json").bufferedReader(Charsets.UTF_8).use{UiContent.parse(it.readText(),catalog.paths)}
         assertEquals(660,ui.tasks.size);assertEquals(39,ui.tasks.values.count{it.prelude});assertTrue(ui.tasks.values.filter{it.prelude}.all{it.groups.isEmpty()})
@@ -43,7 +53,8 @@ class UiSmokeTest {
         assertTrue(ParentPreferences().save(prefs))
         assertTrue(prefs.edit().remove("welcome_seen").commit())
         ctx.deleteDatabase("htq_progress.db")
-        val scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val launchAt=SystemClock.elapsedRealtime()
+        var scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         lateinit var a:MainActivity
         var lastAction="launch"
         try {
@@ -87,8 +98,17 @@ class UiSmokeTest {
                     assertTrue("Clipped $label",bounds.width()>=v.width-1 && bounds.height()>=v.height-1)
                 }
             }
-            await("Bắt đầu");tap("Bắt đầu")
-            assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh");tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
+            fun shot(name:String){
+                if(!finalQa)return
+                require(name.matches(Regex("[a-z0-9-]+")))
+                i.waitForIdleSync();SystemClock.sleep(200)
+                val output=qaShell("screencap -p /data/local/tmp/htq-qa/$name.png")
+                assertTrue("Screenshot command failed: $output",output.isBlank())
+            }
+            await("Bắt đầu")
+            val welcomeReadyMs=SystemClock.elapsedRealtime()-launchAt
+            tap("Bắt đầu")
+            assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh");shot("01-home");tap("Khu vườn");await("Túi đồ");tap("Túi đồ");await("Túi đồ");tap("Trang chủ")
             await("Khu vườn");assertNull(find("6.1 - Native technical foundation"));assertNull(find("6.1 - Loading local content"))
             fun openTask(id:String){
                 val task=ui.tasks.getValue(id);val l=ui.lessons.getValue(task.lesson);val topic=ui.topics.getValue(l.topic)
@@ -126,7 +146,7 @@ class UiSmokeTest {
             val sourceRules=catalog.open("engine/v52/assessment_internal.json").bufferedReader().use{Json.parse(it.readText()).arr().map{v->v.obj()}.associateBy{it.s("task_id")}}
             val right=sourceRules.getValue(select.id).o("rule").s("accepted_id")
             val wrong=select.choiceSlots.first{it!=right}
-            openTask(select.id)
+            openTask(select.id);shot("02-learning")
             val before=completions(select.id)
             assertFalse(await("Xong").isEnabled);tapId(wrong);tap("Xong");await("Bé thử thêm một lần nhé!");assertEquals(before,completions(select.id))
             tapId(right);scenario.recreate();scenario.onActivity{a=it};await(select.prompt);assertTrue(await("Xong").isEnabled)
@@ -134,7 +154,7 @@ class UiSmokeTest {
             await("Về bài học");tap("Xem quà của bé");tap("Để sau");tap("Trang chủ")
             tap("Khu vườn");await("Xem quà của bé");tap("Túi đồ");tap("Xem quà của bé")
             scenario.recreate();scenario.onActivity{a=it};await("Mở quà")
-            tap("Mở quà");await("Bé đã nhận quà!");tap("Túi đồ");await("Trong túi: 1");assertNull(find("Xem quà của bé"));tap("Trang chủ")
+            tap("Mở quà");await("Bé đã nhận quà!");shot("03-reward");tap("Túi đồ");await("Trong túi: 1");assertNull(find("Xem quà của bé"));tap("Trang chủ")
             tap("Khu vườn");tap("Đặt vật");tap("Đặt vật 1");tap("Chọn vị trí bằng nút");tap("Chính giữa")
             fun checkGardenPosition(x:Double,y:Double){
                 val store=LocalProgress(ctx,catalog)
@@ -147,7 +167,16 @@ class UiSmokeTest {
             checkGardenPosition(0.5,0.5)
             tap("Di chuyển vật");tap("Di chuyển vật 1");tap("Chọn vị trí bằng nút");tap("Trên trái")
             checkGardenPosition(1.0/6,1.0/6);tap("Hoàn tác");checkGardenPosition(0.5,0.5)
-            scenario.recreate();scenario.onActivity{a=it};await("Ngắm vườn");checkGardenPosition(0.5,0.5)
+            scenario.recreate();scenario.onActivity{a=it};await("Ngắm vườn");checkGardenPosition(0.5,0.5);shot("04-garden")
+            if(finalQa){
+                scenario.close()
+                scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                scenario.onActivity{a=it}
+                await("Chơi tiếp nhé?");tap("Trang chủ");tap("Khu vườn")
+                checkGardenPosition(0.5,0.5)
+                assertEquals(1,completions(select.id))
+                android.util.Log.i("HTQ_UI_QA","FINAL_ACTIVITY_REOPEN_PASS completion_and_placement_preserved=true")
+            }
             tap("Túi đồ");await("Đã đặt: 1");await("Trong túi: 0");tap("Quay lại")
             tap("Cất vật");tap("Cất vật 1");tap("Túi đồ");await("Trong túi: 1");tap("Quay lại")
             tap("Hoàn tác");tap("Túi đồ");await("Đã đặt: 1");tap("Trang chủ")
@@ -161,7 +190,7 @@ class UiSmokeTest {
                 tap(area.card.title);repeat(area.pages.indexOfFirst{l.topic in it}){tap("Sau")};tap(topic.card.title)
                 repeat(topic.lessons.indexOf(l.card.id)/4){tap("Sau")};tap(l.card.title);tap("Chơi");tap(ui.levels.getValue(gated.level).title)
             }
-            openGated();await("Nghe trước nhé!");assertNull(find(gated.prompt));assertFalse(await("Tiếp tục").isEnabled)
+            openGated();await("Nghe trước nhé!");assertNull(find(gated.prompt));assertFalse(await("Tiếp tục").isEnabled);shot("05-listening")
             tap("Nghe câu chuyện");tap("Dừng");assertFalse(await("Tiếp tục").isEnabled);assertNull(find(gated.prompt))
             tap("Nghe câu chuyện")
             val listenDeadline=SystemClock.elapsedRealtime()+20000
@@ -169,7 +198,7 @@ class UiSmokeTest {
             assertTrue("Actual playback did not unlock gate",await("Tiếp tục").isEnabled);assertNull(find(gated.prompt));tap("Tiếp tục");await(gated.prompt)
             scenario.recreate();scenario.onActivity{a=it};await("Nghe trước nhé!");assertNull(find(gated.prompt));assertFalse(await("Tiếp tục").isEnabled);tap("Trang chủ")
             // Actual navigation and measured preview cards.
-            openTask("05.03-L2-Q02");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3)
+            openTask("05.03-L2-Q02");assertCards("Thẻ nguồn ",3);assertCards("Thẻ đích ",3);shot("06-match")
             i.runOnMainSync{
                 val density=a.resources.displayMetrics.density
                 val visible=walk(a.window.decorView).filter{it.contentDescription?.toString()?.startsWith("Thẻ nguồn ")==true}.any{v->val r=Rect();v.getGlobalVisibleRect(r)&&r.height()/density>=56f}
@@ -203,6 +232,7 @@ class UiSmokeTest {
             fun preview(screen:String,ref:String="",label:String){
                 scenario.onActivity{a=it;push.invoke(it,pageCtor.newInstance(screen,ref,0,false))};i.waitForIdleSync()
                 await(label);if(screen!="SCR-033")assertNull("Rendering failed: $screen",find("Bé thử lại nhé!"))
+                when(screen){"SCR-010"->shot("07-vietnamese");"SCR-011"->shot("08-number");"SCR-013"->shot("09-english");"SCR-016"->shot("10-story")}
                 if(screen=="SCR-033")tap("Về nhà") else tap("Trang chủ")
             }
             val sampleLesson=ui.lessons.values.first{it.intro.isNotEmpty()};val sampleTopic=ui.topics.getValue(sampleLesson.topic)
@@ -248,7 +278,7 @@ class UiSmokeTest {
                 assertTrue(select.lesson in parentStore.openedLessons())
                 parentStore.openedLessons().size
             }finally{parentStore.close()}
-            await("Bài đã mở: $openedCount / ${ui.lessons.size}")
+            await("Bài đã mở: $openedCount / ${ui.lessons.size}");shot("11-parent")
             tap("Quay lại")
             // Authorization must not survive recreation/backgrounding.
             scenario.recreate();scenario.onActivity{a=it};await("Khu vườn");assertNull(find("Theo dõi học tập"))
@@ -402,9 +432,9 @@ class UiSmokeTest {
             }
             scenario.onActivity{it.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE}
             waitProfile{it.orientation==Configuration.ORIENTATION_LANDSCAPE&&it.screenWidthDp>=540}
-            verifyPair(true)
-            // Reconfigure only the same CI emulator, and restore settings. Do not boot another
-            // emulator, rerun the suite, or collect screenshots for these targeted checks.
+            verifyPair(true);shot("12-landscape")
+            // Reconfigure only the same CI emulator and restore settings. Final QA captures
+            // a bounded representative set, never an exhaustive bulk screenshot collection.
             if(android.os.Build.FINGERPRINT.contains("generic")||android.os.Build.MODEL.contains("sdk",ignoreCase=true)){
                 fun shell(command:String):String=ParcelFileDescriptor.AutoCloseInputStream(i.uiAutomation.executeShellCommand(command)).bufferedReader().use{it.readText().trim()}
                 val oldFont=shell("settings get system font_scale").takeIf{it.matches(Regex("[0-9.]+"))}
@@ -419,7 +449,7 @@ class UiSmokeTest {
                     verifyPair(false)
                     shell("wm density 160");shell("wm size 800x1024")
                     waitProfile{it.orientation==Configuration.ORIENTATION_PORTRAIT&&it.screenWidthDp>=760&&it.fontScale>=1.25f}
-                    verifyPair(false)
+                    verifyPair(false);shot("13-tablet")
                     tap("Trang chủ");assertFullyVisible("Khu vườn");assertFullyVisible("Phụ huynh")
                 }finally{
                     shell(if(oldSize==null)"wm size reset" else "wm size $oldSize")
@@ -427,6 +457,10 @@ class UiSmokeTest {
                     shell(if(oldFont==null)"settings delete system font_scale" else "settings put system font_scale $oldFont")
                 }
             }else tap("Trang chủ")
+            if(finalQa){
+                val pssKb=android.os.Debug.getPss()
+                android.util.Log.i("HTQ_UI_QA","FINAL_UI_METRICS welcome_ready_ms=$welcomeReadyMs pss_kb=$pssKb")
+            }
 
         } catch(failure:Throwable){
             android.util.Log.e("HTQ_UI_QA","UiSmokeTest failed after $lastAction",failure)

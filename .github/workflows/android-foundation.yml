@@ -1,7 +1,7 @@
 name: HTQ Android native verification
 on:
   push:
-    branches: [main, verify-6.2, verify-6.3, verify-6.4, verify-6.5]
+    branches: [main, verify-6.2, verify-6.3, verify-6.4, verify-6.5, verify-7]
   workflow_dispatch:
 permissions:
   contents: read
@@ -81,6 +81,13 @@ jobs:
           python3 scripts/prepare_ui_font.py
       - name: Compile and verify native data contract
         run: gradle --no-daemon :core:contractCheck :app:assembleDebug :app:lintDebug :app:assembleDebugAndroidTest
+      - name: Inspect built APK and source-rights gate
+        if: github.ref_name == 'verify-7'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/htq-final-qa"
+          python3 scripts/final_package_qa.py app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/htq-final-qa/package.json"
       - name: Run Android storage and bundled-resource test
         shell: bash
         run: |
@@ -167,5 +174,43 @@ jobs:
           "$adb" -s "$serial" shell settings put global transition_animation_scale 0
           "$adb" -s "$serial" shell settings put global animator_duration_scale 0
           "$adb" devices -l
-          gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest
+          if [[ "$GITHUB_REF_NAME" == "verify-7" ]]; then
+            qa="$RUNNER_TEMP/htq-final-qa"
+            mkdir -p "$qa/screens"
+            "$adb" -s "$serial" shell mkdir -p /data/local/tmp/htq-qa
+            "$adb" -s "$serial" shell cmd connectivity airplane-mode enable
+            "$adb" -s "$serial" shell svc wifi disable
+            "$adb" -s "$serial" shell svc data disable
+            test "$("$adb" -s "$serial" shell settings get global airplane_mode_on | tr -d '\r')" = 1
+            gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.htqFinalQa=true
+            "$adb" -s "$serial" pull /data/local/tmp/htq-qa/. "$qa/screens/"
+            python3 - "$qa/screens" <<'PY'
+          import pathlib, struct, sys
+          folder = pathlib.Path(sys.argv[1])
+          names = ["01-home", "02-learning", "03-reward", "04-garden", "05-listening", "06-match", "07-vietnamese", "08-number", "09-english", "10-story", "11-parent", "12-landscape", "13-tablet"]
+          for name in names:
+              f = folder / (name + ".png")
+              with f.open("rb") as stream:
+                  header = stream.read(24)
+              assert header[:8] == b"\x89PNG\r\n\x1a\n" and header[12:16] == b"IHDR", name
+              width, height = struct.unpack(">II", header[16:24])
+              assert width >= 240 and height >= 240, (name, width, height)
+              print("HTQ_SCREENSHOT", name, width, height, f.stat().st_size)
+          print("HTQ_FINAL_SCREENSHOTS_PASS", len(names))
+          PY
+            "$adb" -s "$serial" logcat -d -s HTQ_UI_QA > "$qa/native-qa.log"
+            for marker in FINAL_OFFLINE_PASS FINAL_ACTIVITY_REOPEN_PASS FINAL_UI_METRICS NATIVE_RENDER_PASS GARDEN_FLOW_PASS PARENT_FLOW_PASS NATIVE_MOTION_MODES_PASS; do
+              grep -F "$marker" "$qa/native-qa.log"
+            done
+          else
+            gradle --no-daemon --max-workers=2 :app:connectedDebugAndroidTest
+          fi
+      - name: Save final QA evidence (no APK)
+        if: github.ref_name == 'verify-7' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloThucQuyen-final-QA-evidence
+          path: ${{ runner.temp }}/htq-final-qa/
+          if-no-files-found: error
+          retention-days: 14
       # No public releases or APK artifact uploads while release_ready=false.
