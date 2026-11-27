@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Button
+import android.widget.CompoundButton
 import android.widget.ImageButton
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -69,7 +70,13 @@ class UiSmokeTest {
                     val density=a.resources.displayMetrics.density
                     assertTrue("Width $label ${v.width/density}",v.width/density>=minimum-0.5f)
                     assertTrue("Height $label ${v.height/density}",v.height/density>=minimum-0.5f)
-                    assertTrue(v.performClick())
+                    if(v is CompoundButton){
+                        // CompoundButton toggles before delegating to View.performClick();
+                        // a checked-change listener is not a View.OnClickListener.
+                        val before=v.isChecked
+                        v.performClick()
+                        assertEquals("Switch did not toggle: $label",!before,v.isChecked)
+                    }else assertTrue("Click was not handled: $label",v.performClick())
                 };i.waitForIdleSync()
             }
             fun assertFullyVisible(label:String){
@@ -206,18 +213,26 @@ class UiSmokeTest {
             preview("SCR-022",sampleLevel.id,"Để sau")
             preview("SCR-033",label="Bé thử lại nhé!")
             // Parent screens are tested through the actual adult gate, not bypassed.
-            tap("Phụ huynh",48)
-            val adultInput=await("Kết quả phép tính") as EditText
-            i.runOnMainSync{
-                val challenge=walk(a.window.decorView).filterIsInstance<TextView>().map{it.text.toString()}.first{it.matches(Regex("[0-9]+ \\+ [0-9]+ = \\?"))}
-                adultInput.setText(Regex("[0-9]+").findAll(challenge).sumOf{it.value.toInt()}.toString())
+            fun enterParent(){
+                tap("Phụ huynh",48)
+                val adultInput=await("Kết quả phép tính") as EditText
+                i.runOnMainSync{
+                    val challenge=walk(a.window.decorView).filterIsInstance<TextView>().map{it.text.toString()}.first{it.matches(Regex("[0-9]+ \\+ [0-9]+ = \\?"))}
+                    adultInput.setText(Regex("[0-9]+").findAll(challenge).sumOf{it.value.toInt()}.toString())
+                }
+                tap("Xác nhận",48);await("Theo dõi học tập")
             }
-            tap("Xác nhận",48);await("Theo dõi học tập")
+            enterParent()
             tap("Theo dõi học tập",48);await("Theo dõi học tập");tap("Quay lại")
             for(label in listOf("Cài đặt âm thanh","Thời lượng và nghỉ","Hỗ trợ thao tác")){
                 tap(label,48);assertTrue(await("Lưu cài đặt").isEnabled)
-                if(label=="Hỗ trợ thao tác"){tap("Giảm chuyển động",48);tap("Lưu cài đặt",48);await("Đã lưu cài đặt");assertTrue(prefs.getBoolean("reduced_motion",false));tap("Giảm chuyển động",48)}
-                tap("Lưu cài đặt",48);await("Đã lưu cài đặt");tap("Quay lại")
+                if(label=="Hỗ trợ thao tác")tap("Giảm chuyển động",48)
+                tap("Lưu cài đặt",48);await("Đã lưu cài đặt")
+                if(label=="Hỗ trợ thao tác"){
+                    assertTrue("Reduced motion setting was not persisted",prefs.getBoolean("reduced_motion",false))
+                    assertTrue("Saved switch did not reflect setting",(await("Giảm chuyển động",true) as CompoundButton).isChecked)
+                }
+                tap("Quay lại")
             }
             tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertTrue(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
             tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng")
@@ -284,10 +299,26 @@ class UiSmokeTest {
             renderApprovedTask(ui.tasks.getValue("04.04-L3-Q02"));tapId("04.04-L3-Q02:o01");tapId("04.04-L3-Q02:o02")
             assertTrue(await("Nghe nhịp").isEnabled);tap("Nghe nhịp");tap("Dừng");tap("Trang chủ")
             // Source simulation must not expose its illustrative result until explicit View.
-            renderApprovedTask(ui.tasks.getValue("08.03-L3-Q01"))
-            assertNull(find("Xem minh họa"))
-            tap("Xem kết quả");tap("Xem minh họa");await("Dừng minh họa")
-            tap("Dừng minh họa");assertNull(find("Minh họa chuyển động"));tap("Trang chủ")
+            // Test actual native media in both settings, using the persisted adult preference.
+            fun checkMotion(reduced:Boolean){
+                renderApprovedTask(ui.tasks.getValue("08.03-L3-Q01"))
+                assertNull(find("Xem minh họa"))
+                tap("Xem kết quả");tap("Xem minh họa");await("Dừng minh họa")
+                val staticOnly=reduced||android.os.Build.VERSION.SDK_INT<28
+                val expected=if(staticOnly)"Minh họa tĩnh" else "Minh họa chuyển động"
+                val unexpected=if(staticOnly)"Minh họa chuyển động" else "Minh họa tĩnh"
+                await(expected);assertNull("Unexpected motion mode",find(unexpected))
+                tap("Dừng minh họa");assertNull(find(expected));tap("Trang chủ")
+            }
+            checkMotion(true)
+            enterParent();tap("Hỗ trợ thao tác",48)
+            assertTrue((await("Giảm chuyển động",true) as CompoundButton).isChecked)
+            tap("Giảm chuyển động",48);tap("Lưu cài đặt",48);await("Đã lưu cài đặt")
+            assertFalse("Reduced motion setting was not switched off",prefs.getBoolean("reduced_motion",true))
+            assertFalse((await("Giảm chuyển động",true) as CompoundButton).isChecked)
+            tap("Trang chủ")
+            checkMotion(false)
+            android.util.Log.i("HTQ_UI_QA","NATIVE_MOTION_MODES_PASS persisted=on,off")
             val pairTask=ui.tasks.getValue("05.03-L2-Q02")
             renderApprovedTask(pairTask)
             fun waitProfile(condition:(Configuration)->Boolean){
