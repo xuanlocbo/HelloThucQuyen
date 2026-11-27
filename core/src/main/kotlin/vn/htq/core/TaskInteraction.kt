@@ -9,6 +9,8 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
     private val engine=AssessmentEngine(catalog)
     private val groups=if(task.prelude)task.afterPrelude else task.groups
     val type=engine.responseType(task.id)
+    val advanced=AdvancedInteraction(catalog,task,type).takeIf{it.supported}
+    val creative=if(type=="participation"&&advanced==null)CreativeInteraction(catalog,task).takeIf{it.supported}else null
     private val selectableRoles=setOf("choices","word","numbers","listen_options","sequence_pieces","direction_endpoints","story_cards")
     private val selectable=groups.filter{it.role in selectableRoles}.flatMap{it.objectIds}.toSet()
     private val sources=groups.filter{it.role=="sources"}.flatMap{it.objectIds}.toSet()
@@ -20,7 +22,7 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
     private val slots=groups.filter{it.role in setOf("sequence_slots","pattern","direction_endpoints")}.sumOf{g->g.items.count{it==UiElement.Blank}}
     private val neutralOpen=type=="participation" && (task.screen in setOf("SCR-065","SCR-069") || task.screen=="SCR-066" && scene.o("native_binding").optional("scene_type")=="participation_story" || task.screen=="SCR-041") && task.id!="12.05-L3-Q02"
     private val IDsValid=(selectable+sources+destinations+memory).all{it in objects}
-    val supported=IDsValid && when(type){
+    val supported=advanced!=null || creative!=null || IDsValid && when(type){
         "single_object","set_equals" -> selectable.isNotEmpty()
         "ordered_sequence" -> selectable.isNotEmpty() && slots>0
         in pairTypes -> sources.isNotEmpty()&&destinations.isNotEmpty()
@@ -44,7 +46,7 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
     val matchedPairs:List<Pair<String,String>> get()=matched.toList()
     val faceUpIds:Set<String> get()=(flipped+matched.flatMap{listOf(it.first,it.second)}).toSet()
     fun isSelected(id:String)=id in selected||id==pendingSource||id in faceUpIds
-    fun canTap(role:String,id:String):Boolean=supported&&!finished&&when{
+    fun canTap(role:String,id:String):Boolean=supported&&advanced==null&&creative==null&&!finished&&when{
         isMemory -> role=="memory"&&id in memory
         isPairing -> role=="sources"&&id in sources||role=="destinations"&&id in destinations
         else -> role in selectableRoles&&id in selectable
@@ -76,17 +78,20 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
         }
         return true
     }
-    fun discardTransient(){pendingSource=null;flipped.clear()}
+    fun discardTransient(){pendingSource=null;flipped.clear();advanced?.discardTransient();creative?.discardTransient()}
     fun discardVerdict(){verdict=null}
+    fun responseChanged(){if(verdict==Verdict.Retry)verdict=null}
     fun closeFlipped():Boolean{if(!isMemory||finished||flipped.isEmpty())return false;flipped.clear();return true}
     fun undo():Boolean{
         if(finished||!supported)return false
         verdict=null
+        advanced?.let{return it.undo()}
+        creative?.let{return it.undo()}
         if(isMemory)return closeFlipped()
         if(isPairing){if(pendingSource!=null){pendingSource=null;return true};val key=assignments.keys.lastOrNull()?:return false;assignments.remove(key);return true}
         if(selected.isEmpty())return false;selected.removeAt(selected.lastIndex);return true
     }
-    fun clear():Boolean{if(finished||!supported)return false;selected.clear();assignments.clear();matched.clear();flipped.clear();pendingSource=null;verdict=null;return true}
+    fun clear():Boolean{if(finished||!supported)return false;advanced?.let{verdict=null;return it.clear()};creative?.let{verdict=null;return it.clear()};selected.clear();assignments.clear();matched.clear();flipped.clear();pendingSource=null;verdict=null;return true}
     fun number(id:String):Int?=when{
         isPairing -> assignments.keys.indexOf(id).takeIf{it>=0}?.plus(1)
         isSequence -> selected.indexOf(id).takeIf{it>=0}?.plus(1)
@@ -108,6 +113,8 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
     }
     fun response():Response? {
         if(!supported||finished)return null
+        advanced?.let{return it.response()}
+        creative?.let{return it.response()}
         return when(type){
             "single_object" -> selected.singleOrNull()?.let{Response.Single(it)}
             "set_equals" -> selected.takeIf{it.isNotEmpty()}?.let{Response.Selection(it.toList())}
@@ -125,12 +132,15 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
         return result
     }
     /** Persist committed responses, never playback proof, a ticket, or a half-flipped pair. */
-    fun saveFields():Obj=buildMap {
+    fun saveFields():Obj=advanced?.saveFields()?:creative?.saveFields()?:buildMap {
         if(isSequence)put("sequence_ids",selected.toList()) else if(!isPairing&&!isMemory)put("selected_object_ids",selected.toList())
         if(isPairing)put("paired_ids",assignments.entries.map{listOf(it.key,it.value)})
         if(isMemory)put("memory_matched_pairs",matched.map{listOf(it.first,it.second)})
     }
-    fun restoreFields(snapshot:Obj):Boolean=runCatching{
+    fun restoreFields(snapshot:Obj):Boolean {
+        advanced?.let{return it.restoreFields(snapshot)}
+        creative?.let{return it.restoreFields(snapshot)}
+        return runCatching{
         val ids=if(isSequence)snapshot["sequence_ids"] else snapshot["selected_object_ids"]
         val ss=ids?.arr()?.map{it.str()}.orEmpty()
         require(ss.size<=maxOf(selectable.size,slots)&&ss.all{it in selectable}&&ss.filter{it !in reusable}.distinct().size==ss.count{it !in reusable})
@@ -145,4 +155,5 @@ class TaskInteraction(private val catalog:Catalog, val task:UiTask){
         selected.clear();selected.addAll(ss);assignments.clear();ps.forEach{assignments[it.first]=it.second};matched.clear();matched.addAll(ms)
         pendingSource=null;flipped.clear();verdict=null;attempted=false;true
     }.getOrDefault(false)
+    }
 }

@@ -1,7 +1,7 @@
 package vn.htq.core
 
 /** A playback request is assembled only from a task's canonical audio object. */
-class AudioRequest internal constructor(val paths: List<String>)
+class AudioRequest internal constructor(val paths: List<String>, internal val cues: List<String?> = paths, internal val beatMs: Long = 0L)
 enum class AudioEvent { PROMPT, LISTEN, HINT, CORRECT, RETRY, CHARACTER_DIALOGUE, EXPLORE_LABEL }
 class TaskAudioPolicy(private val catalog: Catalog) {
     fun request(taskId: String, event: AudioEvent, childRequested: Boolean, attempted: Boolean = false,
@@ -33,9 +33,25 @@ class TaskAudioPolicy(private val catalog: Catalog) {
             "audio_source" -> o.optional("audio_id")?.takeIf{it in segments}
             "choice" -> o.optional("on_request_audio_id")?.takeIf{o.optional("audio_permission")=="explicit_choice_listen_only"&&it in segments}
             "calendar_or_page" -> o.optional("on_request_audio_id")
+            "sound_pad","sign_card","story_card" -> if(catalog.childTask(taskId).participation&&o.optional("play_event")=="explicit_tap_only")o.optional("on_request_audio_id")else null
             else -> null
         }?:return null
         return AudioRequest(listOf(catalog.assetPath(id,"audio")))
+    }
+    fun rhythmRequest(taskId:String,ids:List<String>,childRequested:Boolean):AudioRequest? {
+        if(!childRequested)return null
+        val scene=catalog.tasks.getValue(taskId).o("scene");val native=scene["native_binding"]?.obj()?:return null
+        if(native.optional("scene_type")!="participation_rhythm"||!catalog.childTask(taskId).participation)return null
+        val sequence=native.o("sequence");if(ids.isEmpty()||ids.size>sequence.n("max_sequence_length"))return null
+        val objects=scene.a("objects").map{it.obj()}.associateBy{it.s("object_id")}
+        val cues=ids.map{id->val o=objects[id]?:return null;when(o.s("role")){"rest"->null;"sound_pad"->catalog.assetPath(o.optional("on_request_audio_id")?:return null,"audio");else->return null}}
+        val beat=((sequence["timing_s"] as Number).toDouble()*1000).toLong();require(beat in 100..3000)
+        return AudioRequest(cues.filterNotNull(),cues,beat)
+    }
+    fun resultRequest(state:AdvancedInteraction,childRequested:Boolean):AudioRequest? {
+        if(!childRequested||!state.isSimulation||!state.resultViewed)return null
+        val t=catalog.tasks.getValue(state.task.id);val ids=t.o("audio").strings("story_after_response")
+        return if(ids.isEmpty())null else AudioRequest(ids.map{catalog.assetPath(it,"audio")})
     }
     /** The caller supplies an already-approved non-task presentation asset. */
     fun libraryRequest(path: String, childRequested: Boolean): AudioRequest? =
@@ -45,20 +61,24 @@ interface AudioBackend {
     /** completion callback must be delivered on the same serial dispatch thread as play/stop. */
     fun play(path: String, onComplete: (Boolean) -> Unit)
     fun stop()
+    fun nowMs():Long=System.nanoTime()/1_000_000
+    /** A silent beat is cancellable and runs on the same dispatch thread. */
+    fun waitFor(ms:Long,onComplete:(Boolean)->Unit){onComplete(false)}
 }
 /** One primary stream. Stale/duplicate clip callbacks cannot finish a newer queue. */
 class AudioArbiter(private val backend: AudioBackend) {
     private var epoch = 0L
     private var clip = 0L
-    private var queue: List<String> = emptyList()
+    private var queue: List<String?> = emptyList()
+    private var beatMs=0L
     private var index = 0
     private var finished: ((Boolean)->Unit)? = null
     var active = false; private set
     fun request(request: AudioRequest) = request(request,null)
     fun request(request: AudioRequest, onFinished: ((Boolean)->Unit)?) {
         stop()
-        if(request.paths.isEmpty()){onFinished?.invoke(false);return}
-        queue=request.paths.toList();index=0;finished=onFinished;active=true;next(epoch)
+        if(request.cues.isEmpty()){onFinished?.invoke(false);return}
+        beatMs=request.beatMs;queue=request.cues.toList();index=0;finished=onFinished;active=true;next(epoch)
     }
     private fun complete(token:Long,ok:Boolean){
         if(token!=epoch||!active)return
@@ -69,12 +89,22 @@ class AudioArbiter(private val backend: AudioBackend) {
     private fun next(token: Long) {
         if (token != epoch || !active) return
         if (index >= queue.size) { complete(token,true); return }
-        val path = queue[index++];val thisClip=++clip
-        try { backend.play(path) { ok -> if(token==epoch&&active&&thisClip==clip){if(ok)next(token)else complete(token,false)} } }
-        catch (_: Exception) { if(token==epoch&&active&&thisClip==clip)complete(token,false) }
+        val path = queue[index++];val thisClip=++clip;val began=backend.nowMs()
+        fun delay(ms:Long){
+            val waitClip=++clip
+            backend.waitFor(ms){ok->if(token==epoch&&active&&waitClip==clip){if(ok)next(token)else complete(token,false)}}
+        }
+        try {
+            if(path==null)delay(beatMs)
+            else backend.play(path){ok->if(token==epoch&&active&&thisClip==clip){
+                if(!ok)complete(token,false)
+                else {val remaining=beatMs-(backend.nowMs()-began).coerceAtLeast(0);if(remaining>0)delay(remaining)else next(token)}
+            }}
+        }catch(_:Exception){if(token==epoch&&active)complete(token,false)}
     }
+
     /** Cancellation discards the completion callback. No autoplay or success on stop. */
-    fun stop() { epoch++;clip++;active=false;queue=emptyList();index=0;finished=null;backend.stop() }
+    fun stop() { epoch++;clip++;active=false;queue=emptyList();index=0;beatMs=0L;finished=null;backend.stop() }
 }
 /** Valid only for its original active listening session. No persistence or public constructor. */
 class ListeningReceipt internal constructor(internal val owner: ListeningGate, internal val generation: Long, val taskId:String)

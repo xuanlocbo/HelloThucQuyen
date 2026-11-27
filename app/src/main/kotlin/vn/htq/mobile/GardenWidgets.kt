@@ -41,65 +41,87 @@ import kotlin.math.min
 /** Native View toolkit, not a WebView or a screenshot. All sizes are dp/sp. */
 internal class GardenWidgets(private val activity: Activity) {
     private val config get() = activity.resources.configuration
-    val viewport get() = UiViewport(config.screenWidthDp.coerceAtLeast(200),config.screenHeightDp.coerceAtLeast(200),config.fontScale.coerceAtLeast(1f))
+    var largeText=false
+    var reducedMotion=false
+    private fun scaledSp(size:Int):Float=size*(if(largeText)1.18f else 1f)
+    val viewport get() = UiViewport(config.screenWidthDp.coerceAtLeast(200),config.screenHeightDp.coerceAtLeast(200),(config.fontScale*(if(largeText)1.18f else 1f)).coerceAtLeast(1f))
     // CI prepares the licensed Noto faces; fail visibly rather than silently changing typography.
     private val regular = Typeface.createFromAsset(activity.assets,"htq-font/NotoSans-Regular.ttf")
     private val bold = Typeface.createFromAsset(activity.assets,"htq-font/NotoSans-Bold.ttf")
     private val cache = object : LruCache<String, Bitmap>(24*1024*1024) {
         override fun sizeOf(key:String,value:Bitmap)=value.byteCount
     }
+    private val maskCache=object:LruCache<String,BooleanArray>(8*1024*1024){override fun sizeOf(key:String,value:BooleanArray)=value.size}
+    private var maskSource:String?=null
+    private var maskKeys=mutableListOf<String>()
+    fun cachedFillMask(source:String,seed:Int,calculate:()->BooleanArray?):BooleanArray?{
+        if(maskSource!=source){maskCache.evictAll();maskKeys.clear();maskSource=source}
+        for(key in maskKeys.toList()){val mask=maskCache.get(key);if(mask==null)maskKeys.remove(key)else if(seed in mask.indices&&mask[seed])return mask}
+        val mask=calculate()?:return null
+        val key="$source:$seed";maskCache.put(key,mask);if(key !in maskKeys)maskKeys.add(key)
+        return mask
+    }
     fun dp(value:Int):Int=(value*activity.resources.displayMetrics.density+0.5f).toInt()
     fun color(key:String):Int=Color.parseColor(ApprovedUi.palette.getValue(key))
     fun rounded(fill:String="white",stroke:String="softedge",radius:Int=22):GradientDrawable=GradientDrawable().apply {
         setColor(color(fill));cornerRadius=dp(radius).toFloat();setStroke(dp(1),color(stroke))
     }
-    private fun ripple(fill:String,stroke:String):RippleDrawable=RippleDrawable(ColorStateList.valueOf(0x2224664F),rounded(fill,stroke),null)
+    private fun ripple(fill:String,stroke:String):android.graphics.drawable.Drawable=if(reducedMotion)rounded(fill,stroke)else RippleDrawable(ColorStateList.valueOf(0x2224664F),rounded(fill,stroke),null)
     fun column():LinearLayout=LinearLayout(activity).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER_HORIZONTAL}
     fun row():LinearLayout=LinearLayout(activity).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL}
     fun add(parent:LinearLayout,view:View,gap:Int=12,height:Int=ViewGroup.LayoutParams.WRAP_CONTENT){
         parent.addView(view,LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,if(height>=0)dp(height) else height).apply{topMargin=dp(gap)})
     }
     fun text(value:String,size:Int=18,heavy:Boolean=false,ink:String="ink",center:Boolean=true):TextView=TextView(activity).apply{
-        text=value;textSize=size.toFloat();typeface=if(heavy)bold else regular;setTextColor(color(ink));gravity=if(center)Gravity.CENTER else Gravity.START
+        text=value;textSize=scaledSp(size);typeface=if(heavy)bold else regular;setTextColor(color(ink));gravity=if(center)Gravity.CENTER else Gravity.START
         setPadding(dp(6),dp(5),dp(6),dp(5));setLineSpacing(dp(3).toFloat(),1f);setSingleLine(false)
     }
     fun button(label:String,fill:String="green",adult:Boolean=false,enabled:Boolean=true,action:(()->Unit)?=null):Button=Button(activity).apply{
-        text=label;textSize=(if(adult)18 else ApprovedUi.buttonSp).toFloat();typeface=bold;setAllCaps(false);setSingleLine(false)
+        text=label;textSize=scaledSp(if(adult)18 else ApprovedUi.buttonSp);typeface=bold;setAllCaps(false);setSingleLine(false)
         gravity=Gravity.CENTER;minimumHeight=dp(if(adult)ApprovedUi.adultMinDp else ApprovedUi.preferredDp);minHeight=minimumHeight
         setPadding(dp(12),dp(10),dp(12),dp(10));setTextColor(color(if(enabled && fill=="teal")"white" else if(enabled)"ink" else "disabledink"));background=ripple(if(enabled)fill else "disabled","edge")
         isEnabled=enabled && action!=null;isFocusable=true;if(action!=null)setOnClickListener{action()}
     }
-    fun adultSwitch(label:String):View=Switch(activity).apply {
-        text=label;typeface=regular;textSize=18f;setTextColor(color("ink"));minHeight=dp(64)
-        setPadding(dp(12),dp(8),dp(12),dp(8));background=rounded("white");isEnabled=false
-        contentDescription="$label — chưa kích hoạt"
+    fun adultSwitch(label:String,checked:Boolean,onChange:(Boolean)->Unit):View=Switch(activity).apply {
+        text=label;typeface=regular;textSize=scaledSp(18);setTextColor(color("ink"));minHeight=dp(64)
+        setPadding(dp(12),dp(8),dp(12),dp(8));background=rounded("white");isChecked=checked
+        contentDescription=label;setOnCheckedChangeListener{_,v->onChange(v)}
     }
-    fun adultSlider(label:String):View=column().apply {
+    fun adultSlider(label:String,initial:Int,maxValue:Int,format:(Int)->String,onChange:(Int)->Unit):View=column().apply {
         background=rounded("white");setPadding(dp(12),dp(8),dp(12),dp(8))
-        add(this,text(label,18,center=false),0)
-        add(this,SeekBar(activity).apply {max=100;progress=50;minimumHeight=dp(56);isEnabled=false;contentDescription="$label — chưa kích hoạt"},0)
+        val value=text("$label: ${format(initial)}",18,center=false);add(this,value,0)
+        add(this,SeekBar(activity).apply {max=maxValue;progress=initial;minimumHeight=dp(56);contentDescription=label
+            setOnSeekBarChangeListener(object:SeekBar.OnSeekBarChangeListener{
+                override fun onProgressChanged(bar:SeekBar?,n:Int,fromUser:Boolean){value.text="$label: ${format(n)}";onChange(n)}
+                override fun onStartTrackingTouch(bar:SeekBar?)=Unit
+                override fun onStopTrackingTouch(bar:SeekBar?)=Unit
+            })},0)
     }
     fun adultInput(label:String):EditText=EditText(activity).apply {
         inputType=android.text.InputType.TYPE_CLASS_NUMBER;setSingleLine(true);textSize=24f;typeface=regular
         minimumHeight=dp(56);hint=label;contentDescription=label
     }
     // View-only zoom: one FitCenter transform, clamped pan, no answer overlays or response events.
-    fun zoomArt(path:String,zoomed:Boolean):View=object:View(activity){
+    fun zoomArt(path:String,zoomed:Boolean,point:Pair<Double,Double>?=null,onTap:((Double,Double)->Unit)?=null):View=object:View(activity){
         private val bmp=bitmap(path)
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-        private var panX=0f;private var panY=0f;private var lastX=0f;private var lastY=0f
+        private var panX=0f;private var panY=0f;private var lastX=0f;private var lastY=0f;private var startX=0f;private var startY=0f;private var moved=false
         private fun frame()=ZoomWindow.of(width.toFloat(),height.toFloat(),bmp.width.toFloat(),bmp.height.toFloat(),if(zoomed)2f else 1f,panX,panY)
-        override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return;val r=frame();c.drawBitmap(bmp,null,android.graphics.RectF(r.left,r.top,r.left+r.width,r.top+r.height),paint)}
+        override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return;val r=frame();paint.style=Paint.Style.FILL;c.drawBitmap(bmp,null,android.graphics.RectF(r.left,r.top,r.left+r.width,r.top+r.height),paint)
+            point?.let{val x=r.left+it.first.toFloat()*r.width;val y=r.top+it.second.toFloat()*r.height;paint.style=Paint.Style.STROKE;paint.color=color("navy");paint.strokeWidth=dp(3).toFloat();c.drawCircle(x,y,dp(13).toFloat(),paint);paint.style=Paint.Style.FILL}
+        }
         override fun onTouchEvent(event:MotionEvent):Boolean{
-            if(!zoomed||width<=0||height<=0)return super.onTouchEvent(event)
+            if((!zoomed&&onTap==null)||width<=0||height<=0)return super.onTouchEvent(event)
             when(event.actionMasked){
-                MotionEvent.ACTION_DOWN->{lastX=event.x;lastY=event.y;parent.requestDisallowInterceptTouchEvent(true);return true}
-                MotionEvent.ACTION_MOVE->{panX+=event.x-lastX;panY+=event.y-lastY;lastX=event.x;lastY=event.y;val r=frame();panX=r.left-(width-r.width)/2;panY=r.top-(height-r.height)/2;invalidate();return true}
-                MotionEvent.ACTION_UP,MotionEvent.ACTION_CANCEL->{parent.requestDisallowInterceptTouchEvent(false);if(event.actionMasked==MotionEvent.ACTION_UP)performClick();return true}
+                MotionEvent.ACTION_DOWN->{lastX=event.x;lastY=event.y;startX=event.x;startY=event.y;moved=false;if(zoomed)parent.requestDisallowInterceptTouchEvent(true);return true}
+                MotionEvent.ACTION_MOVE->{if(kotlin.math.abs(event.x-startX)>dp(8)||kotlin.math.abs(event.y-startY)>dp(8))moved=true
+                    if(zoomed&&moved){panX+=event.x-lastX;panY+=event.y-lastY;val r=frame();panX=r.left-(width-r.width)/2;panY=r.top-(height-r.height)/2;invalidate()};lastX=event.x;lastY=event.y;return true}
+                MotionEvent.ACTION_UP->{parent.requestDisallowInterceptTouchEvent(false);if(!moved){performClick();val r=frame();val x=(event.x-r.left)/r.width;val y=(event.y-r.top)/r.height;if(x in 0f..1f&&y in 0f..1f)onTap?.invoke(x.toDouble(),y.toDouble())};return true}
+                MotionEvent.ACTION_CANCEL->{parent.requestDisallowInterceptTouchEvent(false);return true}
             };return true
         }
-        override fun performClick():Boolean {super.performClick();return true}
-        init{contentDescription=if(zoomed)"Tranh phóng to, kéo để xem" else "Tranh";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES;isClickable=zoomed;isFocusable=zoomed;minimumHeight=dp(56)}
+        override fun performClick():Boolean{super.performClick();return true}
+        init{contentDescription=if(zoomed)"Tranh phóng to, kéo để xem" else "Tranh";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES;isClickable=zoomed||onTap!=null;isFocusable=isClickable;minimumHeight=dp(56)}
     }
     data class GardenItem(val path:String,val x:Float,val y:Float)
     fun gardenScene(path:String,items:List<GardenItem>,onPlace:((Double,Double)->Unit)?=null):View=object:View(activity){
@@ -161,12 +183,18 @@ internal class GardenWidgets(private val activity: Activity) {
         }
         init{minimumHeight=dp(72);importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO}
     }
-    fun outlineBoard(path:String,shapes:List<UiOutline>):View=object:View(activity){
+    data class BoardPlacement(val path:String,val crop:List<Float>,val target:List<Float>)
+    fun outlineBoard(path:String,shapes:List<UiOutline>,placements:List<BoardPlacement> = emptyList(),numberTargets:Boolean=false):View=object:View(activity){
         private val image=bitmap(path)
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return
             val fit=FitCenter.of(width.toFloat(),height.toFloat(),image.width.toFloat(),image.height.toFloat())
             paint.style=Paint.Style.FILL;c.drawBitmap(image,null,android.graphics.RectF(fit.left,fit.top,fit.left+fit.width,fit.top+fit.height),paint)
+            placements.forEach{p->
+                val bmp=bitmap(p.path);val src=if(p.crop.isEmpty())android.graphics.Rect(0,0,bmp.width,bmp.height)else sourceRect(bmp,p.crop)
+                val r=p.target;val x=fit.x(r[0]);val y=fit.y(r[1]);val local=FitCenter.of(fit.x(r[2])-x,fit.y(r[3])-y,src.width().toFloat(),src.height().toFloat())
+                c.drawBitmap(bmp,src,android.graphics.RectF(x+local.left,y+local.top,x+local.left+local.width,y+local.top+local.height),paint)
+            }
             paint.style=Paint.Style.STROKE;paint.strokeWidth=dp(2).toFloat();paint.color=color("edge")
             shapes.forEach{shape->val r=shape.rect;val rect=android.graphics.RectF(fit.x(r[0]),fit.y(r[1]),fit.x(r[2]),fit.y(r[3]))
                 when(shape.shape){
@@ -176,6 +204,9 @@ internal class GardenWidgets(private val activity: Activity) {
                 }
             }
             paint.style=Paint.Style.FILL
+            if(numberTargets){paint.typeface=bold;paint.textSize=dp(18).toFloat();paint.textAlign=Paint.Align.CENTER
+                shapes.forEachIndexed{i,shape->val r=shape.rect;val x=fit.x((r[0]+r[2])/2);val y=fit.y((r[1]+r[3])/2);paint.color=color("cream");c.drawCircle(x,y,dp(12).toFloat(),paint);paint.color=color("ink");c.drawText((i+1).toString(),x,y-(paint.ascent()+paint.descent())/2,paint)}
+            }
         }
         init{contentDescription="Khuôn ghép hình";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES}
     }
@@ -213,28 +244,30 @@ internal class GardenWidgets(private val activity: Activity) {
         }
         init{importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO}
     }
-    fun spatial(e:UiElement.Spatial):View=object:View(activity){
+    fun spatial(e:UiElement.Spatial,movablePath:String?=null,zoneIndex:Int=-1,depth:Int=0):View=object:View(activity){
         private val image=bitmap(e.path);private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return
             fun box(center:List<Float>,size:List<Float>):android.graphics.RectF {val x=center[0]*width;val y=center[1]*height;val ww=size[0]*width;val hh=size[1]*height;return android.graphics.RectF(x-ww/2,y-hh/2,x+ww/2,y+hh/2)}
-            val r=box(e.center,e.size);val f=FitCenter.of(r.width(),r.height(),image.width.toFloat(),image.height.toFloat());paint.style=Paint.Style.FILL
-            c.drawBitmap(image,null,android.graphics.RectF(r.left+f.left,r.top+f.top,r.left+f.left+f.width,r.top+f.top+f.height),paint)
+            fun placed(){if(movablePath==null||zoneIndex !in e.zones.indices)return;val z=e.zones[zoneIndex];val dst=box(z.center,z.size);val bmp=bitmap(movablePath);val f=FitCenter.of(dst.width(),dst.height(),bmp.width.toFloat(),bmp.height.toFloat());c.drawBitmap(bmp,null,android.graphics.RectF(dst.left+f.left,dst.top+f.top,dst.left+f.left+f.width,dst.top+f.top+f.height),paint)}
+            paint.style=Paint.Style.FILL;if(depth<0)placed()
+            val r=box(e.center,e.size);val f=FitCenter.of(r.width(),r.height(),image.width.toFloat(),image.height.toFloat());c.drawBitmap(image,null,android.graphics.RectF(r.left+f.left,r.top+f.top,r.left+f.left+f.width,r.top+f.top+f.height),paint)
+            if(depth>=0)placed()
             paint.style=Paint.Style.STROKE;paint.strokeWidth=dp(2).toFloat();paint.color=color("edge");paint.pathEffect=android.graphics.DashPathEffect(floatArrayOf(dp(7).toFloat(),dp(5).toFloat()),0f)
             e.zones.forEach{c.drawRoundRect(box(it.center,it.size),dp(10).toFloat(),dp(10).toFloat(),paint)};paint.pathEffect=null;paint.style=Paint.Style.FILL
         }
         init{contentDescription="Sân đặt vật"}
     }
-    fun measureLength(e:UiElement.MeasureLength):View=object:View(activity){
+    fun measureLength(e:UiElement.MeasureLength,placedCount:Int?=null):View=object:View(activity){
         private val target=bitmap(e.path);private val unit=bitmap(e.unitPath);private val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         override fun onDraw(c:Canvas){super.onDraw(c);if(width<=0||height<=0)return
             val tr=sourceRect(target,e.rect);val ur=sourceRect(unit,e.unitRect)
             val step=minOf((width-dp(24)).coerceAtLeast(1).toFloat()/maxOf(e.length,e.unitCount),height*.23f*tr.width()/tr.height()/e.length,height*.10f*ur.width()/ur.height())
-            val tw=step*e.length;val x=(width-tw)/2
+            val tw=step*e.length;val x=if(placedCount==null)(width-tw)/2 else (width-step*maxOf(e.length,e.unitCount))/2
             val th=tw*tr.height()/tr.width();val uh=step*ur.height()/ur.width()
             c.drawBitmap(target,tr,android.graphics.RectF(x,height*.22f-th/2,x+tw,height*.22f+th/2),paint)
             paint.color=color("edge");paint.strokeWidth=dp(2).toFloat();c.drawLine(x,height*.46f,x+tw,height*.46f,paint)
-            val ux=(width-e.unitCount*step)/2
-            for(i in 0 until e.unitCount){val left=ux+i*step;c.drawBitmap(unit,ur,android.graphics.RectF(left,height*.73f,left+step,height*.73f+uh),paint)}
+            val ux=if(placedCount==null)(width-e.unitCount*step)/2 else x
+            for(i in 0 until (placedCount?:e.unitCount)){val left=ux+i*step;val y=if(placedCount==null)height*.73f else height*.52f;c.drawBitmap(unit,ur,android.graphics.RectF(left,y,left+step,y+uh),paint)}
         }
         init{contentDescription="Vật cần đo và các que đo"}
     }
@@ -312,14 +345,14 @@ internal class GardenWidgets(private val activity: Activity) {
         footer?.let{draw->val tray=column().apply{setPadding(dp(viewport.margin),0,dp(viewport.margin),dp(8));setBackgroundColor(color("cream"))};draw(tray);root.addView(tray,LinearLayout.LayoutParams(-1,-2))}
         return root
     }
-    fun clock(hour:Int?):View=object:View(activity){
+    fun clock(hour:Int?,minute:Int=0):View=object:View(activity){
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
         override fun onDraw(c:Canvas){super.onDraw(c);val cx=width/2f;val cy=height/2f;val r=min(width,height)*0.44f
             paint.color=color("peach");c.drawCircle(cx,cy,r,paint);paint.color=color("cream");c.drawCircle(cx,cy,r*.90f,paint)
             paint.color=color("ink");paint.textAlign=Paint.Align.CENTER;paint.typeface=bold;paint.textSize=r*.19f
             for(i in 1..12){val a=Math.PI*i/6-Math.PI/2;val x=cx+(cos(a)*r*.72).toFloat();val y=cy+(sin(a)*r*.72).toFloat();c.drawText(i.toString(),x,y-(paint.ascent()+paint.descent())/2,paint)}
-            if(hour!=null){paint.strokeCap=Paint.Cap.ROUND;paint.strokeWidth=r*.055f;paint.color=color("navy");c.drawLine(cx,cy,cx,cy-r*.63f,paint)
-                val a=Math.PI*hour/6-Math.PI/2;paint.color=color("pink");paint.strokeWidth=r*.075f;c.drawLine(cx,cy,cx+(cos(a)*r*.46).toFloat(),cy+(sin(a)*r*.46).toFloat(),paint)}
+            if(hour!=null){paint.strokeCap=Paint.Cap.ROUND;paint.strokeWidth=r*.055f;paint.color=color("navy");val ma=Math.PI*minute/30-Math.PI/2;c.drawLine(cx,cy,cx+(cos(ma)*r*.63).toFloat(),cy+(sin(ma)*r*.63).toFloat(),paint)
+                val a=Math.PI*(hour+minute/60.0)/6-Math.PI/2;paint.color=color("pink");paint.strokeWidth=r*.075f;c.drawLine(cx,cy,cx+(cos(a)*r*.46).toFloat(),cy+(sin(a)*r*.46).toFloat(),paint)}
             paint.color=color("ink");c.drawCircle(cx,cy,r*.045f,paint)
         }
         init{contentDescription="Mặt đồng hồ";importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES}

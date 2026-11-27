@@ -16,6 +16,16 @@ class AndroidAudio(private val context: Context): AudioBackend {
     private val manager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val handler = Handler(Looper.getMainLooper())
     private var player: MediaPlayer? = null
+    private var pendingWait:Runnable?=null
+    internal var settings=ParentPreferences()
+    override fun nowMs():Long=android.os.SystemClock.elapsedRealtime()
+    override fun waitFor(ms:Long,onComplete:(Boolean)->Unit){
+        check(Looper.myLooper()==Looper.getMainLooper())
+        stop()
+        val work=Runnable{pendingWait=null;onComplete(true)}
+        pendingWait=work
+        handler.postDelayed(work,ms.coerceIn(0L,3000L))
+    }
     private var focusRequest: AudioFocusRequest? = null
     private var focused = false
     var onFocusLost: (() -> Unit)? = null
@@ -33,19 +43,28 @@ class AndroidAudio(private val context: Context): AudioBackend {
     }
     @Suppress("DEPRECATION")
     override fun stop() {
+        pendingWait?.let{handler.removeCallbacks(it)};pendingWait=null
         val old = player; player = null; old?.release()
         if (focused) { if (Build.VERSION.SDK_INT >= 26) focusRequest?.let { manager.abandonAudioFocusRequest(it) } else manager.abandonAudioFocus(listener) }
         focused = false; focusRequest = null
     }
     override fun play(path: String, onComplete: (Boolean) -> Unit) {
         check(Looper.myLooper() == Looper.getMainLooper())
-        stop(); if (!acquire()) { onComplete(false); return }
+        stop()
+        val config=settings.playback(path)?:run{onComplete(false);return}
+        if (!acquire()) { onComplete(false); return }
         val p = MediaPlayer(); player = p
         fun done(ok: Boolean) { if (player !== p) return; stop(); onComplete(ok) }
         try {
             p.setAudioAttributes(attrs)
             context.assets.openFd("htq/" + canonicalPath(path)).use { p.setDataSource(it.fileDescriptor, it.startOffset, it.length) }
-            p.setOnPreparedListener { if (player === p) it.start() }
+            p.setOnPreparedListener { if (player === p) {
+                try{
+                    it.setVolume(config.gain,config.gain)
+                    if(config.speed!=1f)it.playbackParams=it.playbackParams.setSpeed(config.speed).setPitch(1f)
+                    it.start()
+                }catch(_:Exception){done(false)}
+            } }
             p.setOnCompletionListener { done(true) }
             p.setOnErrorListener { _, _, _ -> done(false); true }
             p.prepareAsync()

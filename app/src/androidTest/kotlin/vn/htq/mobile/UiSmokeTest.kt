@@ -38,6 +38,8 @@ class UiSmokeTest {
         }
         val prefs=ctx.getSharedPreferences("htq_ui_preferences",0)
         val had=prefs.contains("welcome_seen");val previous=prefs.getBoolean("welcome_seen",false)
+        val originalSettings=ParentPreferences.load(prefs)
+        assertTrue(ParentPreferences().save(prefs))
         assertTrue(prefs.edit().remove("welcome_seen").commit())
         ctx.deleteDatabase("htq_progress.db")
         val scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -196,7 +198,9 @@ class UiSmokeTest {
             tap("Xác nhận",48);await("Theo dõi học tập")
             tap("Theo dõi học tập",48);await("Theo dõi học tập");tap("Quay lại")
             for(label in listOf("Cài đặt âm thanh","Thời lượng và nghỉ","Hỗ trợ thao tác")){
-                tap(label,48);assertFalse(await("Lưu cài đặt").isEnabled);tap("Quay lại")
+                tap(label,48);assertTrue(await("Lưu cài đặt").isEnabled)
+                if(label=="Hỗ trợ thao tác"){tap("Giảm chuyển động",48);tap("Lưu cài đặt",48);await("Đã lưu cài đặt");assertTrue(prefs.getBoolean("reduced_motion",false));tap("Giảm chuyển động",48)}
+                tap("Lưu cài đặt",48);await("Đã lưu cài đặt");tap("Quay lại")
             }
             tap("Đặt lại tiến trình",48);tap("Tiếp tục xác nhận",48);assertTrue(await("Xác nhận đặt lại").isEnabled);tap("Hủy",48);tap("Quay lại")
             tap("Thông tin ứng dụng",48);await("Thông tin ứng dụng")
@@ -251,6 +255,17 @@ class UiSmokeTest {
                     for(row in rows)for(n in 0 until row.childCount){val v=row.getChildAt(n);val d=a.resources.displayMetrics.density;assertTrue(v.width/d>=55.5f&&v.height/d>=55.5f)}
                 }
             }
+            renderApprovedTask(ui.tasks.getValue("01.05-L1-Q01"))
+            assertFalse(await("Pha màu").isEnabled);assertNull(find("Bé chọn màu"))
+            tapId("mix:0");tapId("mix:1");tap("Pha màu");await("Bé chọn màu");assertFalse(await("Xong").isEnabled)
+            tap("Hoàn tác");assertNull(find("Bé chọn màu"));tap("Trang chủ")
+            renderApprovedTask(ui.tasks.getValue("04.08-L3-Q01"));tap("Giờ +")
+            assertTrue(await("Xong").isEnabled);tap("Hoàn tác");assertFalse(await("Xong").isEnabled);tap("Trang chủ")
+            renderApprovedTask(ui.tasks.getValue("04.06-L2-Q01"));tap("Que 1");assertFalse(await("Xong").isEnabled);tap("Trang chủ")
+            renderApprovedTask(ui.tasks.getValue("01.05-L3-Q01"));await("Bảng vẽ, chạm hoặc kéo ngón tay để tô");tap("Làm lại")
+            tap("Hủy");await("Bảng vẽ, chạm hoặc kéo ngón tay để tô");tap("Trang chủ")
+            renderApprovedTask(ui.tasks.getValue("04.04-L3-Q02"));tapId("04.04-L3-Q02:o01");tapId("04.04-L3-Q02:o02")
+            assertTrue(await("Nghe nhịp").isEnabled);tap("Nghe nhịp");tap("Dừng");tap("Trang chủ")
             val pairTask=ui.tasks.getValue("05.03-L2-Q02")
             renderApprovedTask(pairTask)
             fun waitProfile(condition:(Configuration)->Boolean){
@@ -296,6 +311,6 @@ class UiSmokeTest {
                 }
             }else tap("Trang chủ")
 
-        } finally {scenario.close();i.waitForIdleSync();ctx.deleteDatabase("htq_progress.db");if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
+        } finally {scenario.close();i.waitForIdleSync();ctx.deleteDatabase("htq_progress.db");originalSettings.save(prefs);if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
     }
 }

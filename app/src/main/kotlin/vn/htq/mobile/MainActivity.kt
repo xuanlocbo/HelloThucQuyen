@@ -41,12 +41,34 @@ class MainActivity : Activity() {
     private var pendingStack:ArrayList<String>?=null
     private var pendingGroupPages:Bundle?=null
     private val prefs by lazy { getSharedPreferences("htq_ui_preferences",MODE_PRIVATE) }
+    private var settings=ParentPreferences()
+    private var elapsedStudyMs=0L
+    private var foregroundBegan:Long?=null
+    private fun studyTimeMs()=elapsedStudyMs+(foregroundBegan?.let{SystemClock.elapsedRealtime()-it}?:0L)
+    private fun applySettings(){
+        w.largeText=settings.largeText;w.reducedMotion=settings.reducedMotion;f?.backend?.settings=settings
+    }
+    private fun menuMusic(base:Foundation,p:Page):String?{
+        if(!settings.music||settings.musicVolume==0)return null
+        val n=when(p.screen){
+            "SCR-003","SCR-004"->1
+            "SCR-023","SCR-024"->8
+            "SCR-005","SCR-006","SCR-008"->{
+                val topic=if(p.screen=="SCR-005")p.ref else base.ui.lessons[p.ref]?.topic?:return null
+                when(topic.take(2)){"01","15"->5;"02","03","04"->3;"05"->4;"06","07","08","09","10","11","12","13","14"->2;"16"->6;"17"->7;else->return null}
+            }
+            else->return null
+        }
+        return base.catalog.assetPath("AUD-MUS-"+n.toString().padStart(4,'0'),"audio")
+    }
     private val parentScreens=setOf("SCR-025","SCR-026","SCR-027","SCR-028","SCR-029","SCR-030","SCR-031","SCR-032")
     private val page get()=stack.lastOrNull() ?: Page("SCR-003")
     private val appTitle get()=getString(R.string.app_name)
 
     override fun onCreate(savedInstanceState:Bundle?){
         super.onCreate(savedInstanceState);w=GardenWidgets(this)
+        settings=ParentPreferences.load(prefs);applySettings()
+        elapsedStudyMs=savedInstanceState?.getLong("study_elapsed_ms",0L)?:0L
         seed=if(prefs.contains("visual_seed"))prefs.getLong("visual_seed",0L) else Random.nextLong().also{prefs.edit().putLong("visual_seed",it).apply()}
         pendingStack=savedInstanceState?.getStringArrayList("ui_stack")
         pendingGroupPages=savedInstanceState?.getBundle("ui_group_pages")
@@ -72,7 +94,7 @@ class MainActivity : Activity() {
                 result.fold(onSuccess={ (catalog,ui)->
                     val opened=runCatching{Foundation(catalog,ui,LocalProgress(applicationContext,catalog),AndroidAudio(this))}
                     opened.fold(onSuccess={base->
-                        f=base;stack.clear();stack.add(Page("SCR-003"))
+                        f=base;applySettings();stack.clear();stack.add(Page("SCR-003"))
                         val restored=pendingStack
                         val decoded=restored?.mapNotNull(::decodePage).orEmpty()
                         groupPages.clear()
@@ -82,6 +104,9 @@ class MainActivity : Activity() {
                                 groupStateLimits(ui,stack).forEach{(key,max)->
                                     val n=saved.getInt(key,0)
                                     if(n in 1..max)groupPages[key]=n
+                                }
+                                saved.keySet().filter{validInteractionPageKey(ui,stack,it)}.take(80).forEach{key->
+                                    val n=saved.getInt(key,0);if(n in 1..660)groupPages[key]=n
                                 }
                             }
                         }else if(!prefs.getBoolean("welcome_seen",false)) stack.add(Page("SCR-002"))
@@ -121,8 +146,14 @@ class MainActivity : Activity() {
         }
         return limits
     }
+    private fun validInteractionPageKey(ui:UiContent,pages:List<Page>,key:String):Boolean{
+        val parts=key.split(':')
+        return parts.size==3&&parts[0] in setOf("advanced","creative")&&parts[1] in ui.tasks&&
+            pages.any{it.ref==parts[1]}&&parts[2].matches(Regex("[a-z0-9_]{1,30}"))
+    }
     override fun onSaveInstanceState(outState:Bundle){
         super.onSaveInstanceState(outState)
+        outState.putLong("study_elapsed_ms",studyTimeMs())
         val base=f
         if(base==null){
             pendingStack?.let{outState.putStringArrayList("ui_stack",it)}
@@ -136,9 +167,10 @@ class MainActivity : Activity() {
             val n=groupPages[key]?:0
             if(n in 1..max)state.putInt(key,n)
         }
+        groupPages.entries.filter{validInteractionPageKey(base.ui,safe,it.key)&&it.value in 1..660}.take(80).forEach{state.putInt(it.key,it.value)}
         outState.putBundle("ui_group_pages",state)
     }
-    private fun stopAudio(){f?.audio?.stop()}
+    private fun stopAudio(){f?.audio?.stop();f?.backend?.settings=settings}
     private fun active(action:()->Unit):()->Unit={if(resumed&&!closed)action()}
     private fun playNonTask(path:String?){
         if(!resumed||closed||path==null)return
@@ -150,7 +182,7 @@ class MainActivity : Activity() {
         base.audioPolicy.request(task.id,event,true,attempted=state?.attempted==true,verdict=state?.verdict)?.let(base.audio::request)
     }
     private fun leaveListening(){f?.listening?.leave();preludeOpenedFor=null;listeningFailed=false}
-    private fun depart(){if(f?.listening?.taskId!=null)leaveListening()else stopAudio();interaction?.discardTransient()}
+    private fun depart(){if(f?.listening?.taskId!=null)leaveListening()else stopAudio();f?.backend?.settings=settings;interaction?.discardTransient()}
     private fun push(p:Page){depart();stack.add(p);render()}
     private fun replace(p:Page){depart();if(stack.isNotEmpty())stack[stack.lastIndex]=p else stack.add(p);render()}
     private fun back(){depart();val wasParent=page.screen in parentScreens;if(stack.size>1){stack.removeAt(stack.lastIndex);if(wasParent && page.screen !in parentScreens)f?.parent?.close();if(page.screen in parentScreens && page.screen!="SCR-025" && f?.parent?.allowed()!=true)home() else render()}else home()}
@@ -173,8 +205,8 @@ class MainActivity : Activity() {
         now.forEachIndexed{i,sc->sc.post{if(page==before)sc.scrollTo(0,positions.getOrElse(i){0})}}
     }
     private fun changeResponse(state:TaskInteraction,change:()->Boolean){
-        if(page.ref!=state.task.id||!resumed||closed)return
-        if(change())try{saveInteraction(state);refreshTask()}catch(_:Exception){showError(page)}
+        if(page.ref!=state.task.id||interaction!==state||state.finished||!resumed||closed)return
+        if(change())try{state.responseChanged();saveInteraction(state);refreshTask()}catch(_:Exception){showError(page)}
     }
     private fun submitTask(base:Foundation,state:TaskInteraction){
         if(page.ref!=state.task.id||!resumed||closed)return
@@ -183,7 +215,16 @@ class MainActivity : Activity() {
             try{base.progress.commit(result.ticket)}catch(_:Exception){state.discardVerdict();showError(page);return}
         }
         refreshTask()
-        when(result){is Verdict.Completed->taskVoice(state.task,AudioEvent.CORRECT);Verdict.Retry->taskVoice(state.task,AudioEvent.RETRY);else->Unit}
+        val event=when(result){is Verdict.Completed->AudioEvent.CORRECT;Verdict.Retry->AudioEvent.RETRY;else->null}
+        if(event!=null){
+            val request=base.audioPolicy.request(state.task.id,event,true,attempted=state.attempted,verdict=result)
+            if(request!=null&&request.paths.all{settings.playback(it)!=null})base.audio.request(request)
+            else if(!state.task.listen&&!state.task.prelude&&settings.effects&&
+                (result==Verdict.Retry||result is Verdict.Completed&&result.ticket.kind==CompletionKind.GRADED)){
+                val id=if(result==Verdict.Retry)"AUD-FX-0010" else "AUD-FX-0009"
+                base.audioPolicy.libraryRequest(base.catalog.assetPath(id,"audio"),true)?.let(base.audio::request)
+            }
+        }
     }
     private fun welcomeDone(){prefs.edit().putBoolean("welcome_seen",true).apply();home()}
     private fun openTask(id:String,restore:Boolean=false){
@@ -219,7 +260,10 @@ class MainActivity : Activity() {
     private fun frame(ui:UiContent,p:Page,heading:String,body:(LinearLayout)->Unit,background:String?=null,top:Boolean=true,footer:((LinearLayout)->Unit)?=null){
         val isHome=p.screen=="SCR-003";val isWelcome=p.screen=="SCR-002"
         val backdrop=isHome || isWelcome || ui.tasks[p.ref]?.screen==p.screen
-        mount(w.shell(heading,background,if(!isHome&&!isWelcome&&top)active(::back)else null,if(!isHome&&!isWelcome&&top)active(::home)else null,backdrop=backdrop,footer=footer,body=body))
+        mount(w.shell(heading,background,if(!isHome&&!isWelcome&&top)active(::back)else null,if(!isHome&&!isWelcome&&top)active(::home)else null,backdrop=backdrop,footer=footer){b->
+            body(b)
+            f?.let{base->menuMusic(base,p)?.let{path->w.pair(b,w.button("Nhạc nền","white",action=active{playNonTask(path)}),w.button("Dừng nhạc","white",action=active(::stopAudio)))}}
+        })
     }
     private fun action(body:LinearLayout,label:String,fill:String="green",adult:Boolean=false,enabled:Boolean=true,fn:(()->Unit)?=null){w.add(body,w.button(label,fill,adult,enabled,fn?.let{active(it)}))}
     private fun heading(body:LinearLayout,text:String){w.add(body,w.text(text,24,true),8)}
@@ -356,6 +400,10 @@ class MainActivity : Activity() {
             ui.screenArt("SCR-021").firstOrNull()?.let{w.art(b,it,200,"Bạn nhỏ")}
             w.add(b,w.text(if(done>0)"Bé đã tham gia $done hoạt động." else "Bé có thể chơi tiếp vào lúc khác.",22))
             if(rewards.isNotEmpty())action(b,"Xem quà của bé","teal",fn={push(Page("SCR-022",p.ref))})
+            if(settings.remind&&studyTimeMs()>=settings.minutes*60_000L){
+                w.add(b,w.text("Đến giờ nghỉ một chút rồi!",22,true))
+                action(b,"Về nhà nghỉ ngơi","teal",fn={elapsedStudyMs=0L;foregroundBegan=SystemClock.elapsedRealtime();home()})
+            }
             action(b,"Về bài học","white",fn=::back);action(b,"Về nhà","green",fn=::home)
         })
     }
@@ -379,16 +427,53 @@ class MainActivity : Activity() {
         })
     }
     private fun parentSettings(base:Foundation,p:Page){
+        var draft=settings
+        fun preview(path:String){
+            if(!base.parent.allowed()||page!=p)return
+            base.audio.stop();base.backend.settings=draft
+            base.audioPolicy.libraryRequest(path,true)?.let{request->base.audio.request(request){base.backend.settings=settings}}
+        }
         frame(base.ui,p,base.ui.screenNames.getValue(p.screen),{b->
-            w.add(b,w.text("Các tùy chọn chưa được kích hoạt.",18,center=false))
-            fun toggle(label:String)=w.add(b,w.adultSwitch(label))
-            fun slider(label:String)=w.add(b,w.adultSlider(label))
+            if(p.extra)w.add(b,w.text("Đã lưu cài đặt",20,true))
+            fun toggle(label:String,checked:Boolean,update:(Boolean)->Unit)=w.add(b,w.adultSwitch(label,checked,update))
+            fun slider(label:String,initial:Int,max:Int,format:(Int)->String,update:(Int)->Unit)=w.add(b,w.adultSlider(label,initial,max,format,update))
+            val percent:(Int)->String={"${it}%"}
             when(p.screen){
-                "SCR-028"->{toggle("Giọng cô");slider("Âm lượng giọng nói");toggle("Tiếng Anh");toggle("Nhạc nền");slider("Âm lượng nhạc");toggle("Hiệu ứng");slider("Âm lượng hiệu ứng");slider("Tốc độ nghe");action(b,"Nghe mẫu","white",adult=true,enabled=false)}
-                "SCR-029"->{slider("Thời lượng sử dụng đề xuất");toggle("Nhắc nghỉ giữa các hoạt động")}
-                else->{toggle("Chạm thay kéo");toggle("Chữ lớn");toggle("Giảm chuyển động");toggle("Nhạc nền")}
+                "SCR-028"->{
+                    toggle("Giọng cô",draft.voice){draft=draft.copy(voice=it)}
+                    slider("Âm lượng giọng nói",draft.speechVolume,100,percent){draft=draft.copy(speechVolume=it)}
+                    toggle("Tiếng Anh",draft.english){draft=draft.copy(english=it)}
+                    toggle("Nhạc nền",draft.music){draft=draft.copy(music=it)}
+                    slider("Âm lượng nhạc",draft.musicVolume,100,percent){draft=draft.copy(musicVolume=it)}
+                    toggle("Hiệu ứng",draft.effects){draft=draft.copy(effects=it)}
+                    slider("Âm lượng hiệu ứng",draft.effectVolume,100,percent){draft=draft.copy(effectVolume=it)}
+                    slider("Tốc độ nghe",draft.speedIndex,4,{listOf("0,75×","0,85×","1×","1,15×","1,25×")[it]}){draft=draft.copy(speedIndex=it)}
+                    w.add(b,w.text("Bài nghe bắt buộc cần bật âm thanh phù hợp. Nhạc nền chỉ phát khi bé chọn trong menu.",18,center=false))
+                    action(b,"Nghe mẫu","white",adult=true,fn={preview(base.ui.welcomeAudio?:base.ui.letters.first().audio)})
+                    action(b,"Thử tiếng Anh","white",adult=true,fn={preview(base.ui.vocabulary.first().audio)})
+                    action(b,"Thử nhạc","white",adult=true,fn={preview(base.catalog.assetPath("AUD-MUS-0001","audio"))})
+                    action(b,"Thử hiệu ứng","white",adult=true,fn={preview(base.catalog.assetPath("AUD-FX-0001","audio"))})
+                    action(b,"Dừng","white",adult=true,fn=::stopAudio)
+                }
+                "SCR-029"->{
+                    slider("Thời lượng sử dụng đề xuất",draft.minutes-5,55,{"${it+5} phút"}){draft=draft.copy(minutes=it+5)}
+                    toggle("Nhắc nghỉ giữa các hoạt động",draft.remind){draft=draft.copy(remind=it)}
+                    w.add(b,w.text("Ứng dụng nhắc nghỉ ở cuối hoạt động, không tự khóa bài học.",18,center=false))
+                }
+                else->{
+                    w.add(b,w.text("Chạm thay kéo luôn được hỗ trợ: chạm vật rồi chạm nơi muốn đặt.",18,center=false))
+                    toggle("Chữ lớn",draft.largeText){draft=draft.copy(largeText=it)}
+                    toggle("Giảm chuyển động",draft.reducedMotion){draft=draft.copy(reducedMotion=it)}
+                    toggle("Nhạc nền",draft.music){draft=draft.copy(music=it)}
+                    w.add(b,w.text("Giảm chuyển động tắt hiệu ứng chạm của nút. Nội dung và đáp án không thay đổi.",18,center=false))
+                }
             }
-            action(b,"Lưu cài đặt","teal",adult=true,enabled=false)
+            action(b,"Lưu cài đặt","teal",adult=true,fn={
+                if(!base.parent.allowed()){home()}else{
+                    stopAudio()
+                    if(draft.save(prefs)){settings=draft;applySettings();replace(p.copy(extra=true))}else showError(page)
+                }
+            })
         })
     }
     private fun parentReset(base:Foundation,p:Page){
@@ -557,7 +642,20 @@ class MainActivity : Activity() {
                 heading(lead,t.prompt)
                 if(w.taskSplit){action(lead,"Nghe lại","teal",fn={taskVoice(t,AudioEvent.PROMPT)});action(lead,"Dừng","white",fn=::stopAudio)}else w.pair(lead,w.button("Nghe lại","teal",action=active{taskVoice(t,AudioEvent.PROMPT)}),w.button("Dừng","white",action=active(::stopAudio)))
                 if(t.listen && !source.prelude && t.groups.none{it.role=="listen_options"||it.role=="sources"&&it.items.any{e->e==UiElement.Speaker}})action(lead,"Nghe mẫu","blue",fn={taskVoice(t,AudioEvent.LISTEN)})
-            },{scene->t.groups.forEachIndexed{index,g->renderGroup(scene,p,t,index,g,w.taskBoardDp,state)}})
+            },{scene->
+                val advanced=state.advanced;val creative=state.creative
+                val commit:(()->Boolean)->Unit={change->changeResponse(state,change)}
+                val refresh:()->Unit={if(resumed&&!closed&&page==p)refreshTask()}
+                when{
+                    advanced!=null->AdvancedTaskViews(w,advanced,state.finished,groupPages,seed,commit,refresh,
+                        active{if(page==p)base.audioPolicy.resultRequest(advanced,true)?.let(base.audio::request)}).draw(scene)
+                    creative!=null->CreativeTaskViews(w,creative,state.finished,groupPages,commit,refresh,
+                        {id->if(resumed&&!closed&&page==p)base.audioPolicy.objectRequest(t.id,id,true)?.let(base.audio::request)},
+                        {ids->if(resumed&&!closed&&page==p)base.audioPolicy.rhythmRequest(t.id,ids,true)?.let(base.audio::request)},
+                        active(::stopAudio)).draw(scene)
+                    else->t.groups.forEachIndexed{index,g->renderGroup(scene,p,t,index,g,w.taskBoardDp,state)}
+                }
+            })
             if(state.supported){
                 when(val v=state.verdict){
                     is Verdict.Completed -> w.add(b,w.text(if(v.ticket.kind==CompletionKind.OPEN)"Cảm ơn bé đã tham gia!" else "Bé làm tốt lắm!",24,true))
@@ -566,7 +664,16 @@ class MainActivity : Activity() {
                 }
                 if(!state.finished){
                     if(state.isMemory)action(b,"Úp thẻ","white",enabled=state.faceUpIds.size>state.matchedPairs.size*2,fn={changeResponse(state,state::closeFlipped)})
-                    else if(t.screen!="SCR-069")w.pair(b,w.button("Hoàn tác","white",action=active{changeResponse(state,state::undo)}),w.button("Làm lại","white",action=active{changeResponse(state,state::clear)}))
+                    else if(t.screen!="SCR-069")w.pair(b,w.button("Hoàn tác","white",action=active{changeResponse(state,state::undo)}),w.button("Làm lại","white",action=active{
+                        if(state.creative!=null){
+                            val controls=w.column().apply{setPadding(w.dp(16),w.dp(12),w.dp(16),w.dp(16))}
+                            val dialog=android.app.AlertDialog.Builder(this).setTitle("Xóa phần bé đã làm?").setView(controls).create()
+                            w.add(controls,w.button("Hủy","white",action={dialog.dismiss()}))
+                            w.add(controls,w.button("Xóa","peach",action={dialog.dismiss();changeResponse(state,state::clear)}))
+                            dialog.show()
+                        }
+                        else changeResponse(state,state::clear)
+                    }))
                     if(state.type!="participation")action(b,"Gợi ý","white",enabled=state.attempted,fn={taskVoice(t,AudioEvent.HINT)})
                     action(b,"Xong","teal",enabled=state.response()!=null,fn={submitTask(base,state)})
                 }else action(b,"Tiếp tục","teal",fn={nextWithoutReward(t)})
@@ -673,8 +780,8 @@ class MainActivity : Activity() {
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
         if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && (!g.advanceRequiresCommit || if(g.role=="sequence_slots")state.selectedIds.size>=partitions.take(pageIndex+1).sumOf{it.size} else state.pageCommitted(partitions[pageIndex].mapNotNull{g.objectIds.getOrNull(it)})),action=active{groupPages[key]=pageIndex+1;stopAudio();refreshTask()}))}
     }
-    override fun onResume(){super.onResume();resumed=true;if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
-    override fun onPause(){resumed=false;depart();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
+    override fun onResume(){super.onResume();resumed=true;foregroundBegan=SystemClock.elapsedRealtime();if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
+    override fun onPause(){elapsedStudyMs=studyTimeMs();foregroundBegan=null;resumed=false;depart();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}
     override fun onStop(){stopAudio();super.onStop()}
     override fun onDestroy(){closed=true;stopAudio();f?.progress?.close();f=null;if(::w.isInitialized)w.clear();super.onDestroy()}
     @Suppress("DEPRECATION") override fun onBackPressed(){if(stack.size>1)back()else super.onBackPressed()}
