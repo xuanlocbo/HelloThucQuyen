@@ -24,6 +24,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -244,8 +245,8 @@ internal class GardenWidgets(private val activity: Activity) {
         importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_YES
         for(i in 0 until childCount)getChildAt(i).importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
-    fun grid(parent:LinearLayout,views:List<View>,wanted:Int=2,minCard:Int=100){
-        val cols=viewport.columns(wanted,minCard);views.chunked(cols).forEach{items->
+    fun grid(parent:LinearLayout,views:List<View>,wanted:Int=2,minCard:Int=100,availableDp:Int=viewport.available){
+        val cols=wanted.coerceAtLeast(1).coerceAtMost(((availableDp+ApprovedUi.gapDp)/(minCard+ApprovedUi.gapDp)).coerceAtLeast(1));views.chunked(cols).forEach{items->
             val r=row();items.forEachIndexed{i,v->r.addView(v,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f).apply{if(i>0)marginStart=dp(12)})}
             repeat(cols-items.size){r.addView(View(activity),LinearLayout.LayoutParams(0,1,1f).apply{marginStart=dp(12)})};add(parent,r)
         }
@@ -256,6 +257,26 @@ internal class GardenWidgets(private val activity: Activity) {
             val r=row();r.addView(first,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f));r.addView(second,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f).apply{marginStart=dp(12)});add(parent,r)
         }
     }
+    // Responsive task split uses the approved landscape instruction/scene arrangement.
+    val taskSplit get()=viewport.width>=540 && viewport.width>viewport.height
+    private val taskLeadDp get()=minOf(220,((viewport.available-ApprovedUi.gapDp)*0.32f).toInt())
+    val taskBoardDp get()=if(taskSplit)viewport.available-ApprovedUi.gapDp-taskLeadDp else viewport.available
+    fun taskColumns(parent:LinearLayout,instructions:(LinearLayout)->Unit,scene:(LinearLayout)->Unit){
+        if(!taskSplit){instructions(parent);scene(parent);return}
+        val strip=row().apply{gravity=Gravity.TOP}
+        val lead=column().apply{gravity=Gravity.TOP or Gravity.CENTER_HORIZONTAL}
+        val board=column().apply{gravity=Gravity.TOP or Gravity.CENTER_HORIZONTAL}
+        instructions(lead);scene(board)
+        strip.addView(lead,LinearLayout.LayoutParams(dp(taskLeadDp),ViewGroup.LayoutParams.WRAP_CONTENT))
+        strip.addView(board,LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f).apply{marginStart=dp(ApprovedUi.gapDp)})
+        add(parent,strip,0)
+    }
+    fun navButton(path:String,label:String,action:()->Unit):ImageButton=ImageButton(activity).apply{
+        setImageBitmap(bitmap(path));scaleType=ImageView.ScaleType.FIT_CENTER
+        background=ripple("white","edge");minimumWidth=dp(64);minimumHeight=dp(64)
+        setPadding(dp(12),dp(12),dp(12),dp(12));contentDescription=label
+        isFocusable=true;setOnClickListener{action()}
+    }
     fun shell(title:String,backgroundArt:String?,back:(()->Unit)?,home:(()->Unit)?,backdrop:Boolean=false,footer:((LinearLayout)->Unit)?=null,body:(LinearLayout)->Unit):View{
         val root=column().apply{setBackgroundColor(color("cream"))}
         root.setOnApplyWindowInsetsListener{view,insets->
@@ -263,9 +284,9 @@ internal class GardenWidgets(private val activity: Activity) {
             view.setPadding(insets.systemWindowInsetLeft,insets.systemWindowInsetTop,insets.systemWindowInsetRight,insets.systemWindowInsetBottom);insets
         }
         val header=row().apply{setPadding(dp(viewport.margin),dp(6),dp(viewport.margin),dp(6));setBackgroundColor(color("cream"))}
-        back?.let{header.addView(button("‹",fill="white",action=it).apply{contentDescription="Quay lại"},LinearLayout.LayoutParams(dp(64),ViewGroup.LayoutParams.WRAP_CONTENT))}
+        back?.let{header.addView(navButton("ui/icons/ico_002.webp","Quay lại",it),LinearLayout.LayoutParams(dp(64),dp(64)))}
         header.addView(text(title,28,true),LinearLayout.LayoutParams(0,ViewGroup.LayoutParams.WRAP_CONTENT,1f))
-        home?.let{header.addView(button("⌂",fill="white",action=it).apply{contentDescription="Trang chủ"},LinearLayout.LayoutParams(dp(64),ViewGroup.LayoutParams.WRAP_CONTENT))}
+        home?.let{header.addView(navButton("ui/icons/ico_001.webp","Trang chủ",it),LinearLayout.LayoutParams(dp(64),dp(64)))}
         root.addView(header,LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT))
         val scroll=ScrollView(activity).apply{isFillViewport=true}
         val content=column().apply{setPadding(dp(viewport.margin),dp(4),dp(viewport.margin),dp(20))}

@@ -394,31 +394,41 @@ class MainActivity : Activity() {
     })}
     private fun taskScreen(base:Foundation,p:Page,t:UiTask){val ui=base.ui
         if(t.prelude){frame(ui,p,"Nghe trước nhé!",{b->
-            t.preludeImage?.let{w.art(b,it,240,"Cảnh mở đầu")}
-            action(b,"Nghe câu chuyện","teal",fn={taskVoice(t,AudioEvent.LISTEN)})
-            action(b,"Dừng","white",fn=::stopAudio)
-            // No question is exposed until an actual playback-complete event is integrated in 6.3.
+            w.taskColumns(b,{lead->
+                action(lead,"Nghe câu chuyện","teal",fn={taskVoice(t,AudioEvent.LISTEN)})
+                action(lead,"Dừng","white",fn=::stopAudio)
+            },{scene->t.preludeImage?.let{w.art(scene,it,if(w.taskSplit)180 else 240,"Cảnh mở đầu")}})
+            // No question is exposed until a real playback-complete event in 6.3.
             action(b,"Tiếp tục","white",enabled=false)
             w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",t.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(t)}))
         },t.background);return}
         if(!t.ready){frame(ui,p,"Bé chơi nhé!",{b->w.add(b,w.text("Bé chọn hoạt động khác nhé.",24,true));action(b,"Quay lại","white",fn=::back)});return}
         val level=ui.levels.getValue(t.level);val current=level.tasks.indexOf(t.id)+1
         frame(ui,p,"$current / ${level.tasks.size}",{b->
-            heading(b,t.prompt)
-            w.pair(b,w.button("Nghe lại","teal",action=active{taskVoice(t,AudioEvent.PROMPT)}),w.button("Dừng","white",action=active(::stopAudio)))
-            if(t.listen && t.groups.none{it.role=="listen_options"})action(b,"Nghe mẫu","blue",fn={taskVoice(t,AudioEvent.LISTEN)})
-            t.groups.forEachIndexed{index,g->renderGroup(b,p,t,index,g)}
-            // Deliberately no response evaluation, completion or reward button until its engine is connected.
-            action(b,"Xong","white",enabled=false)
+            w.taskColumns(b,{lead->
+                heading(lead,t.prompt)
+                if(w.taskSplit){action(lead,"Nghe lại","teal",fn={taskVoice(t,AudioEvent.PROMPT)});action(lead,"Dừng","white",fn=::stopAudio)}else w.pair(lead,w.button("Nghe lại","teal",action=active{taskVoice(t,AudioEvent.PROMPT)}),w.button("Dừng","white",action=active(::stopAudio)))
+                if(t.listen && t.groups.none{it.role=="listen_options"})action(lead,"Nghe mẫu","blue",fn={taskVoice(t,AudioEvent.LISTEN)})
+            },{scene->t.groups.forEachIndexed{index,g->renderGroup(scene,p,t,index,g,w.taskBoardDp)}})
+            // Render the source-specific controls without simulating 6.3 responses or reward events.
+            when(t.screen){
+                "SCR-061"->action(b,"Úp thẻ","white",enabled=false)
+                "SCR-062"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Làm lại bước","white",enabled=false))
+                "SCR-063"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Tẩy","white",enabled=false))
+                "SCR-064"->w.pair(b,w.button("Hoàn tác","white",enabled=false),w.button("Chọn màu","white",enabled=false))
+                "SCR-068"->action(b,"Xem kết quả","white",enabled=false)
+                else->if(t.screen.removePrefix("SCR-").toInt() in 34..60)action(b,"Gợi ý","white",enabled=false)
+            }
+            if(t.screen!="SCR-061" && t.screen!="SCR-068")action(b,"Xong","white",enabled=false)
             w.pair(b,w.button("Nghỉ","white",action=active{push(Page("SCR-019",t.id))}),w.button("Bỏ qua","green",action=active{nextWithoutReward(t)}))
         },t.background)
     }
-    private fun renderGroup(b:LinearLayout,p:Page,t:UiTask,index:Int,g:UiGroup){
+    private fun renderGroup(b:LinearLayout,p:Page,t:UiTask,index:Int,g:UiGroup,availableDp:Int){
         val items=if(g.shuffle)g.items.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong()))else g.items
         if(g.role.startsWith("compare_")){
             // Same-size source art, quantity unchanged. Close/wide spacing differs, not scale.
-            val r=w.row().apply{gravity=android.view.Gravity.CENTER};val cell=minOf(44,(w.viewport.available-12)/items.size)
-            items.forEachIndexed{i,e->if(e is UiElement.Image){r.addView(w.image(e.path),LinearLayout.LayoutParams(w.dp(cell),w.dp(cell)).apply{if(i>0)marginStart=w.dp(if(g.role=="compare_wide")minOf(12,(w.viewport.available-cell*items.size)/(items.size.coerceAtLeast(2)-1))else 2)})}}
+            val r=w.row().apply{gravity=android.view.Gravity.CENTER};val cell=minOf(44,((availableDp-12*(items.size-1))/items.size).coerceAtLeast(1))
+            items.forEachIndexed{i,e->if(e is UiElement.Image){r.addView(w.image(e.path),LinearLayout.LayoutParams(w.dp(cell),w.dp(cell)).apply{if(i>0)marginStart=w.dp(if(g.role=="compare_wide")minOf(12,(availableDp-cell*items.size)/(items.size.coerceAtLeast(2)-1))else 2)})}}
             w.add(b,r);return
         }
         val key=groupKey(t,index,g)
@@ -460,7 +470,7 @@ class MainActivity : Activity() {
                 UiElement.Blank->if(g.role in setOf("workbench","sequence_slots","mix_result","direction_endpoints"))w.add(cell,View(this).apply{background=w.rounded("cream","edge",16);contentDescription="Ô trống"},0,if(g.role=="workbench")200 else 90)else w.add(cell,w.text("?",36,true),0)
             };cell
         }
-        w.grid(b,views,if(context)1 else g.columns,if(g.role=="word")80 else 100)
+        w.grid(b,views,if(context)1 else g.columns,if(g.role=="word")80 else 100,availableDp)
         // Shared pair pages have one pager after both groups. Ordered trays that require a real commit remain locked until 6.3.
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
         if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && !g.advanceRequiresCommit,action=active{groupPages[key]=pageIndex+1;stopAudio();render()}))}
