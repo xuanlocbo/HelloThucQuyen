@@ -300,9 +300,21 @@ class UiSmokeTest {
             assertTrue(await("Nghe nhịp").isEnabled);tap("Nghe nhịp");tap("Dừng");tap("Trang chủ")
             // Source simulation must not expose its illustrative result until explicit View.
             // Test actual native media in both settings, using the persisted adult preference.
-            fun checkMotion(reduced:Boolean){
+            fun checkMotion(reduced:Boolean,resumeViewed:Boolean=false){
                 renderApprovedTask(ui.tasks.getValue("08.03-L3-Q01"))
-                assertNull(find("Xem minh họa"))
+                if(resumeViewed){
+                    // The first visit committed an explicit result-view event. Restoring that
+                    // event is correct; restoring or starting playback automatically is not.
+                    await("Xem minh họa")
+                    assertFalse("Restored result can be viewed again",await("Xem kết quả").isEnabled)
+                    assertNull("Restored session started animated playback",find("Minh họa chuyển động"))
+                    assertNull("Restored session started static playback",find("Minh họa tĩnh"))
+                    assertNull("Restored session has a playback stop control",find("Dừng minh họa"))
+                    // Start a genuinely new attempt using the child's real reset control.
+                    tap("Làm lại")
+                }
+                assertNull("Motion exposed before explicit result; reduced=$reduced",find("Xem minh họa"))
+                assertTrue("Fresh result must be viewable; reduced=$reduced",await("Xem kết quả").isEnabled)
                 tap("Xem kết quả");tap("Xem minh họa");await("Dừng minh họa")
                 val staticOnly=reduced||android.os.Build.VERSION.SDK_INT<28
                 val expected=if(staticOnly)"Minh họa tĩnh" else "Minh họa chuyển động"
@@ -317,8 +329,8 @@ class UiSmokeTest {
             assertFalse("Reduced motion setting was not switched off",prefs.getBoolean("reduced_motion",true))
             assertFalse((await("Giảm chuyển động",true) as CompoundButton).isChecked)
             tap("Trang chủ")
-            checkMotion(false)
-            android.util.Log.i("HTQ_UI_QA","NATIVE_MOTION_MODES_PASS persisted=on,off")
+            checkMotion(false,resumeViewed=true)
+            android.util.Log.i("HTQ_UI_QA","NATIVE_MOTION_MODES_PASS persisted=on,off restored_result=true auto_playback=false reset_relocks=true")
             val pairTask=ui.tasks.getValue("05.03-L2-Q02")
             renderApprovedTask(pairTask)
             fun waitProfile(condition:(Configuration)->Boolean){
