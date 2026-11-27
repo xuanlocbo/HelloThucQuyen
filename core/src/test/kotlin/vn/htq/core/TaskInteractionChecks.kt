@@ -14,6 +14,7 @@ internal object TaskInteractionChecks {
         val backend=ControlledAudio();val arbiter=AudioArbiter(backend);val gate=ListeningGate(c,arbiter)
         var supported=0;var restored=0;var wrong=0;val counts=linkedMapOf<String,Int>()
         val taskMotion=TaskMotion(c);var motionCases=0
+        val session=SessionPolicy(c);var sessionRoundTrips=0
         for(t in ui.tasks.values){
             val s=TaskInteraction(c,t);if(!s.supported)continue
             counts[s.type]=(counts[s.type]?:0)+1
@@ -31,7 +32,7 @@ internal object TaskInteractionChecks {
                 check(!d.touch(Double.NaN,0.5));check(!d.addUnit("foreign"));check(!d.drop("foreign"));check(!d.pour("foreign"))
                 when(reference){
                     is Response.Single->{check(d.isMix);check(d.response()==null);check(!d.viewResult());check(!d.predict(reference.id));d.mixInputs.forEach{check(d.choosePigment(it.id))};check(d.viewResult());check(d.visibleResultCards.isNotEmpty());check(d.predict(reference.id))}
-                    Response.ParticipationDone->{if(d.isSimulation){check(d.visibleResultCards.isEmpty());check(d.predict(d.predictionCards.first().id));check(d.viewResult());check(d.visibleResultCards.isNotEmpty())}else if(d.isCareer){check(!d.chooseTool(d.toolCards.first().id));check(d.chooseCareer(d.careerCards.first().id));d.toolCards.take(2).forEach{check(d.chooseTool(it.id))};check(!d.chooseTool(d.toolCards[2].id))}else error("Unexpected open task")}
+                    Response.ParticipationDone->{if(d.isSimulation){check(d.visibleResultCards.isEmpty());check(d.predict(d.predictionCards.first().id));check(d.viewResult());check(d.visibleResultCards.isNotEmpty());check(!d.predict(d.predictionCards.first().id))}else if(d.isCareer){check(!d.chooseTool(d.toolCards.first().id));check(d.chooseCareer(d.careerCards.first().id));d.toolCards.take(2).forEach{check(d.chooseTool(it.id))};check(!d.chooseTool(d.toolCards[2].id))}else error("Unexpected open task")}
 
                     is Response.Transfer->{reference.movedIds.forEach{check(d.move(it))};reference.numberId?.let{check(d.setNumber(it))}}
                     is Response.Combine->{reference.movedIds.forEach{check(d.move(it))};check(d.setNumber("number:${reference.number}"))}
@@ -79,6 +80,13 @@ internal object TaskInteractionChecks {
                 else->error("Unsupported controller family was marked ready")
             }
             check(s.response()!=null){"No committed response for ${t.id}"}
+            // Exercise the exact allowlist and JSON roundtrip used by SQLite, not only controller snapshots.
+            val persisted=requireNotNull(session.sanitize(Json.parse(Json.encode(session.snapshotForTask(t.id)+s.saveFields())).obj()))
+            val restoredSession=TaskInteraction(c,t)
+            check(restoredSession.restoreFields(persisted)){"Stored session rejected for ${t.id}"}
+            check(restoredSession.response()==s.response()){"Stored session changed response for ${t.id}"}
+            check(Json.encode(restoredSession.saveFields())==Json.encode(s.saveFields())){"Stored session dropped committed state for ${t.id}"}
+            sessionRoundTrips++
             if(s.advanced?.isSimulation==true){
                 check(taskMotion.available(s));check(taskMotion.request(s,false,false)==MotionDecision.Blocked)
                 val restoredState=TaskInteraction(c,t);check(restoredState.restoreFields(Json.parse(Json.encode(s.saveFields())).obj()))
@@ -102,6 +110,7 @@ internal object TaskInteractionChecks {
             }
             gate.leave();supported++
         }
+        check(sessionRoundTrips==660);println("HTQ_SESSION_ROUNDTRIP_PASS tasks=$sessionRoundTrips")
         check(motionCases==12);println("HTQ_TASK_MOTION_PASS cases=$motionCases")
         check(supported==660);println("HTQ_TASK_CONTROLLERS_PASS tasks=$supported restored=$restored wrong=$wrong counts=$counts")
         val fake=object:AudioBackend{

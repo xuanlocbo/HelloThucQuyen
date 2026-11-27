@@ -141,9 +141,10 @@ class MainActivity : Activity() {
     private fun groupStateLimits(ui:UiContent,pages:List<Page>):Map<String,Int> {
         val limits=linkedMapOf<String,Int>()
         pages.mapNotNull{ui.tasks[it.ref]}.distinctBy{it.id}.forEach{t->
-            t.groups.forEachIndexed{index,g->
+            (if(t.prelude)t.afterPrelude else t.groups).forEachIndexed{index,g->
                 val key=groupKey(t,index,g)
-                val max=if(g.advanceRequiresCommit)0 else if(g.pageSizes.isNotEmpty())g.pageSizes.lastIndex else g.items.lastIndex
+                // Saved paging is only a hint; renderGroup revalidates the committed response.
+                val max=g.items.lastIndex
                 limits[key]=minOf(limits[key]?:max,max)
                 if(g.role=="hotspot")limits["zoom:$key"]=1
             }
@@ -211,13 +212,13 @@ class MainActivity : Activity() {
     }
     private fun changeResponse(state:TaskInteraction,change:()->Boolean){
         if(page.ref!=state.task.id||interaction!==state||state.finished||!resumed||closed)return
-        if(change())try{state.responseChanged();saveInteraction(state);refreshTask()}catch(_:Exception){showError(page)}
+        if(change())try{state.responseChanged();saveInteraction(state);refreshTask()}catch(e:Exception){reportRenderFailure(page,e);showError(page)}
     }
     private fun submitTask(base:Foundation,state:TaskInteraction){
         if(page.ref!=state.task.id||!resumed||closed)return
         val result=state.submit(base.listening.receipt(state.task.id))
         if(result is Verdict.Completed){
-            try{base.progress.commit(result.ticket)}catch(_:Exception){state.discardVerdict();showError(page);return}
+            try{base.progress.commit(result.ticket)}catch(e:Exception){reportRenderFailure(page,e);state.discardVerdict();showError(page);return}
         }
         refreshTask()
         val event=when(result){is Verdict.Completed->AudioEvent.CORRECT;Verdict.Retry->AudioEvent.RETRY;else->null}
@@ -253,6 +254,11 @@ class MainActivity : Activity() {
     }
     private fun fixedBackground(ui:UiContent,id:String)=ui.screenArt(id).firstOrNull{it.startsWith("art/img_bg_")}
     private fun fixedFigure(ui:UiContent,id:String)=ui.screenArt(id).firstOrNull{!it.startsWith("art/img_bg_")}
+    private fun reportRenderFailure(p:Page?,error:Throwable){
+        // Development diagnostics contain screen/task identifiers only, never progress payloads.
+        if(applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE!=0)
+            android.util.Log.e("HTQ_RENDER","Native screen failure: "+(p?.screen?:"load")+" "+(p?.ref?:""),error)
+    }
     private fun showError(previous:Page?){
         errorReturn=previous
         mount(w.shell(appTitle,null,null,null){body->
@@ -325,7 +331,7 @@ class MainActivity : Activity() {
                 "SCR-033"->showError(null)
                 else->ui.tasks[p.ref]?.takeIf{it.screen==p.screen}?.let{taskScreen(base,p,it)}?:showError(p)
             }
-        }catch(_:Exception){showError(p)}
+        }catch(e:Exception){reportRenderFailure(p,e);showError(p)}
     }
     private fun homeScreen(base:Foundation,p:Page){val ui=base.ui
         frame(ui,p,appTitle,{b->
@@ -720,7 +726,13 @@ class MainActivity : Activity() {
             val ordered=if(g.shuffle)indices.shuffled(Random(seed xor t.id.hashCode().toLong() xor index.toLong() xor (n.toLong() shl 32)))else indices
             ordered
         }
-        val pageIndex=(groupPages[key]?:0).coerceIn(0,chunks.lastIndex)
+        fun committed(n:Int):Boolean=!g.advanceRequiresCommit ||
+            if(g.role=="sequence_slots")state.selectedIds.size>=partitions.take(n+1).sumOf{it.size}
+            else state.pageCommitted(partitions[n].mapNotNull{g.objectIds.getOrNull(it)})
+        var maxPage=0
+        while(maxPage<chunks.lastIndex&&committed(maxPage))maxPage++
+        val pageIndex=(groupPages[key]?:0).coerceIn(0,maxPage)
+        groupPages[key]=pageIndex
         val offset=partitions.take(pageIndex).sumOf{it.size}
         val context=g.role in setOf("context","trace","hotspot","workbench","board")
         val heading=when(g.role){"sources"->"Thẻ hình";"destinations"->"Nhóm ghép";"reserve"->"Bên ngoài";"workbench"->"Sân chơi";"palette"->"Chọn hình hoặc màu";"decorations"->"Họa tiết";"sequence_slots"->"Sắp xếp";"mix_sources"->"Màu để pha";"mix_result"->"Pha màu";"listen_options"->"Nghe từng mẫu";"sample_glyph"->"Chữ mẫu";else->null};heading?.let{w.add(b,w.text(it,18,true),8)}
@@ -789,9 +801,9 @@ class MainActivity : Activity() {
                 for(j in 0 until cuts.lastIndex)w.grid(b,views.subList(cuts[j],cuts[j+1]),cuts[j+1]-cuts[j],80,availableDp)
             }
         }else w.grid(b,views,if(context)1 else g.columns,if(t.screen=="SCR-044"&&g.items.any{it is UiElement.Glyph})120 else 100,availableDp)
-        // Shared pair pages have one pager after both groups. Ordered trays that require a real commit remain locked until 6.3.
+        // Shared pair pages have one pager after both groups. Ordered trays advance only after committed input.
         val showPager=g.pager==null || t.groups.drop(index+1).none{it.pager==g.pager}
-        if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && (!g.advanceRequiresCommit || if(g.role=="sequence_slots")state.selectedIds.size>=partitions.take(pageIndex+1).sumOf{it.size} else state.pageCommitted(partitions[pageIndex].mapNotNull{g.objectIds.getOrNull(it)})),action=active{groupPages[key]=pageIndex+1;stopAudio();refreshTask()}))}
+        if(chunks.size>1 && showPager){w.add(b,w.text("${pageIndex+1} / ${chunks.size}",18),4);w.pair(b,w.button("Trước","white",enabled=pageIndex>0,action=active{groupPages[key]=pageIndex-1;stopAudio();render()}),w.button("Sau","green",enabled=pageIndex<chunks.lastIndex && committed(pageIndex),action=active{groupPages[key]=pageIndex+1;stopAudio();refreshTask()}))}
     }
     override fun onResume(){super.onResume();resumed=true;foregroundBegan=SystemClock.elapsedRealtime();if(adultInvalidated){adultInvalidated=false;home()}else if(f?.ui?.tasks?.get(page.ref)?.screen==page.screen)render()}
     override fun onPause(){elapsedStudyMs=studyTimeMs();foregroundBegan=null;resumed=false;depart();f?.parent?.close();if(page.screen in parentScreens)adultInvalidated=true;super.onPause()}

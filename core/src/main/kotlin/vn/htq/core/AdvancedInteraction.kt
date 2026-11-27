@@ -137,7 +137,7 @@ class AdvancedInteraction internal constructor(private val catalog:Catalog,val t
         when(e.firstOrNull()){
             "pigment"->{require(e.size==2&&isMix&&!viewed&&mixInputs.any{it.id==e[1]});if(!mixSelected.add(e[1]))mixSelected.remove(e[1])}
             "view"->{require(e.size==1&&!viewed&&(isSimulation||isMix&&mixSelected.size==mixInputs.size));viewed=true}
-            "predict"->{require(e.size==2&&(isSimulation||isMix&&viewed)&&predictionCards.any{it.id==e[1]});prediction=e[1]}
+            "predict"->{require(e.size==2&&(isSimulation&&!viewed||isMix&&viewed)&&predictionCards.any{it.id==e[1]});prediction=e[1]}
             "career"->{require(e.size==2&&isCareer&&careerCards.any{it.id==e[1]});career=e[1];chosenTools.clear()}
             "tool"->{require(e.size==2&&isCareer&&career!=null&&toolCards.any{it.id==e[1]});if(e[1] in chosenTools)chosenTools.remove(e[1])else{require(chosenTools.size<2);chosenTools.add(e[1])}}
             "move"->{require(e.size==3);val id=e[1];val zone=e[2];require(validInstance(id));when{

@@ -104,16 +104,44 @@ jobs:
             set +e
             if (( rc != 0 )); then
               echo '::group::Emulator diagnostics'
-              "$adb" devices -l
-              tail -n 250 "$log"
-              if [[ $(timeout 5 "$adb" -s "$serial" get-state 2>/dev/null) == device ]]; then
-                timeout 15 "$adb" -s "$serial" logcat -d -t 300
+              # The Gradle console may truncate assertion messages. Read its existing XML;
+              # no screenshots, artifact upload, reinstall or repeated test invocation.
+              python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = Path("app/build/outputs/androidTest-results/connected")
+          failures = 0
+          for path in sorted(root.rglob("*.xml")):
+              try:
+                  for case in ET.parse(path).iter("testcase"):
+                      for node in case:
+                          if node.tag in ("failure", "error"):
+                              failures += 1
+                              print("HTQ_ANDROID_TEST_FAILURE", case.get("classname"), case.get("name"), node.get("message", ""))
+                              print((node.text or "")[:16000])
+              except ET.ParseError as err:
+                  print("Unreadable Android test result", path.name, err)
+          print("HTQ_ANDROID_FAILURE_REPORT_COUNT", failures)
+          PY
+              timeout -k 2s 10s "$adb" devices -l
+              tail -n 120 "$log"
+              if [[ $(timeout -k 2s 5s "$adb" -s "$serial" get-state 2>/dev/null) == device ]]; then
+                timeout -k 2s 15s "$adb" -s "$serial" logcat -d -s HTQ_UI_QA HTQ_RENDER TestRunner AndroidRuntime
               fi
               echo '::endgroup::'
             fi
-            timeout 15 "$adb" -s "$serial" emu kill >/dev/null 2>&1
-            kill "$emu_pid" 2>/dev/null
-            wait "$emu_pid" 2>/dev/null
+            timeout -k 2s 10s "$adb" -s "$serial" emu kill >/dev/null 2>&1
+            kill -TERM "$emu_pid" 2>/dev/null
+            # Emulator console shutdown can fail. Never block in an unbounded wait.
+            for attempt in 1 2 3 4 5; do
+              kill -0 "$emu_pid" 2>/dev/null || break
+              sleep 1
+            done
+            if kill -0 "$emu_pid" 2>/dev/null; then
+              kill -KILL "$emu_pid" 2>/dev/null
+            else
+              wait "$emu_pid" 2>/dev/null
+            fi
             exit "$rc"
           }
           trap cleanup EXIT

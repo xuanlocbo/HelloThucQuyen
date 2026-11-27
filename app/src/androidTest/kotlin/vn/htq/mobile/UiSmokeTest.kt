@@ -44,6 +44,7 @@ class UiSmokeTest {
         ctx.deleteDatabase("htq_progress.db")
         val scenario=ActivityScenario.launch<MainActivity>(Intent(ctx,MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         lateinit var a:MainActivity
+        var lastAction="launch"
         try {
             scenario.onActivity{a=it}
             fun walk(v:View):List<View> = listOf(v)+if(v is ViewGroup)(0 until v.childCount).flatMap{walk(v.getChildAt(it))}else emptyList()
@@ -53,12 +54,17 @@ class UiSmokeTest {
                 return out
             }
             fun await(label:String,clickable:Boolean=false):View {
+                lastAction="await $label (clickable=$clickable)"
                 val deadline=SystemClock.elapsedRealtime()+20000
                 do {i.waitForIdleSync();find(label,clickable)?.let{return it};SystemClock.sleep(100)}while(SystemClock.elapsedRealtime()<deadline)
-                fail("Missing visible view: $label");error("Missing view")
+                var labels=emptyList<String>()
+                i.runOnMainSync{labels=walk(a.window.decorView).filter{it.visibility==View.VISIBLE}.mapNotNull{v->
+                    (if(v is TextView)v.text?.toString()else v.contentDescription?.toString())?.takeIf{it.isNotBlank()}
+                }.distinct().take(40)}
+                fail("Missing visible view: $label; current labels: "+labels.joinToString(" | "));error("Missing view")
             }
             fun tap(label:String,minimum:Int=56){
-                val v=await(label,true);i.runOnMainSync{
+                val v=await(label,true);lastAction="tap $label";i.runOnMainSync{
                     assertTrue("Disabled $label",v.isEnabled);assertTrue("Not clickable $label",v.isClickable)
                     val density=a.resources.displayMetrics.density
                     assertTrue("Width $label ${v.width/density}",v.width/density>=minimum-0.5f)
@@ -95,10 +101,15 @@ class UiSmokeTest {
             }
             // Real touch response, validation, persistence and reward. Source answers are read in tests only.
             fun tapId(id:String){
+                lastAction="tap source card"
                 var selected:View?=null
                 i.runOnMainSync{selected=walk(a.window.decorView).firstOrNull{it.tag==id&&it.isClickable&&it.isEnabled}}
                 val v=requireNotNull(selected){"No interactive card $id"}
-                i.runOnMainSync{assertTrue(v.performClick())};i.waitForIdleSync()
+                i.runOnMainSync{
+                    val density=a.resources.displayMetrics.density
+                    assertTrue("Card target below 56dp",v.width/density>=55.5f&&v.height/density>=55.5f)
+                    assertTrue(v.performClick())
+                };i.waitForIdleSync()
             }
             fun completions(id:String):Int{
                 val db=LocalProgress(ctx,catalog)
@@ -153,6 +164,12 @@ class UiSmokeTest {
             openTask("04.07-L3-Q02");await("1 / 3");await("Thứ Hai");await("Thứ Ba");await("Thứ Tư")
             for(day in listOf("Thứ Năm","Thứ Sáu","Thứ Bảy","Chủ nhật"))assertNull(find(day))
             i.runOnMainSync{val next=walk(a.window.decorView).filter{it is TextView && it.text.toString()=="Sau"};assertEquals(2,next.size);assertTrue(next.none{it.isEnabled})}
+            // Commit the first choice page, recreate, then undo. A stale page index cannot bypass its gate.
+            for(n in 1..3)tapId("04.07-L3-Q02:o0$n")
+            i.runOnMainSync{val next=walk(a.window.decorView).filterIsInstance<Button>().single{it.text.toString()=="Sau"&&it.isEnabled};assertTrue(next.performClick())}
+            await("Thứ Năm")
+            scenario.recreate();scenario.onActivity{a=it};await("Thứ Năm")
+            tap("Hoàn tác");await("Thứ Ba");assertNull(find("Thứ Năm"))
             tap("Trang chủ")
             // Representative rendering of the remaining general screens. The private Page
             // constructor is accessed only from instrumentation; no test route is shipped.
@@ -316,6 +333,9 @@ class UiSmokeTest {
                 }
             }else tap("Trang chủ")
 
+        } catch(failure:Throwable){
+            android.util.Log.e("HTQ_UI_QA","UiSmokeTest failed after $lastAction",failure)
+            throw AssertionError("UiSmokeTest failed after $lastAction: "+(failure.message?:failure.javaClass.simpleName),failure)
         } finally {scenario.close();i.waitForIdleSync();ctx.deleteDatabase("htq_progress.db");originalSettings.save(prefs);if(had)prefs.edit().putBoolean("welcome_seen",previous).commit()else prefs.edit().remove("welcome_seen").commit()}
     }
 }
